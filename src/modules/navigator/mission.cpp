@@ -48,6 +48,7 @@
 #include "mission.h"
 #include "navigator.h"
 
+#include <crc32.h>
 #include <string.h>
 #include <drivers/drv_hrt.h>
 #include <dataman/dataman.h>
@@ -57,6 +58,7 @@
 #include <navigator/navigation.h>
 #include <uORB/uORB.h>
 #include <uORB/topics/mission.h>
+#include <uORB/topics/mission_checksum.h>
 #include <uORB/topics/mission_result.h>
 #include <drivers/drv_hrt.h>
 #include <px4_platform_common/events.h>
@@ -1724,6 +1726,8 @@ Mission::check_mission_valid(bool force)
 
 		// find and store landing start marker (if available)
 		find_mission_land_start();
+
+		calculate_mission_checksums();
 	}
 }
 
@@ -1913,4 +1917,77 @@ void Mission::publish_navigator_mission_item()
 	navigator_mission_item.timestamp = hrt_absolute_time();
 
 	_navigator_mission_item_pub.publish(navigator_mission_item);
+}
+
+
+void Mission::calculate_mission_checksums()
+{
+	mission_s mission_state;
+	mission_stats_entry_s stats;
+	uORB::Publication<mission_checksum_s> csum_pub{ORB_ID(mission_checksum)};
+	mission_checksum_s csum{};
+
+	csum.timestamp = hrt_absolute_time();
+	csum.mission_checksum = 0;
+	csum.fence_checksum = 0;
+	csum.rally_checksum = 0;
+	csum.all_checksum = 0;
+
+	if (dm_read(DM_KEY_MISSION_STATE, 0, &mission_state, sizeof(mission_s)) != sizeof(mission_s)) {
+		PX4_ERR("dataman read failure");
+		return;
+	}
+
+	dm_item_t dm_current = (dm_item_t)(_mission.dataman_id);
+
+	for (size_t i = 0; i < mission_state.count; i++) {
+		struct mission_item_s mission_item = {};
+		const ssize_t len = sizeof(mission_item);
+
+		if (dm_read(dm_current, i, &mission_item, len) != len) {
+			PX4_ERR("dataman read failure");
+			return;
+		}
+
+		crc32part(reinterpret_cast<uint8_t *>(&mission_item), sizeof(mission_item), csum.mission_checksum);
+		crc32part(reinterpret_cast<uint8_t *>(&mission_item), sizeof(mission_item), csum.all_checksum);
+	}
+
+	if (dm_read(DM_KEY_FENCE_POINTS, 0, &stats, sizeof(mission_stats_entry_s)) != sizeof(mission_stats_entry_s)) {
+		PX4_ERR("dataman read failure");
+		return;
+	}
+
+	for (size_t i = 1; i <= stats.num_items; i++) {
+		mission_fence_point_s mission_fence_point;
+		const ssize_t len = sizeof(mission_fence_point);
+
+		if (dm_read(DM_KEY_FENCE_POINTS, i, &mission_fence_point, len) != len) {
+			PX4_ERR("dataman read failure");
+			return;
+		}
+
+		crc32part(reinterpret_cast<uint8_t *>(&mission_fence_point), sizeof(mission_fence_point), csum.fence_checksum);
+		crc32part(reinterpret_cast<uint8_t *>(&mission_fence_point), sizeof(mission_fence_point), csum.all_checksum);
+	}
+
+	if (dm_read(DM_KEY_SAFE_POINTS, 0, &stats, sizeof(mission_stats_entry_s)) != sizeof(mission_stats_entry_s)) {
+		PX4_ERR("dataman read failure");
+		return;
+	}
+
+	for (size_t i = 1; i <= stats.num_items; i++) {
+		mission_safe_point_s mission_safe_point;
+		const ssize_t len = sizeof(mission_safe_point);
+
+		if (dm_read(DM_KEY_SAFE_POINTS, i, &mission_safe_point, len) != len) {
+			PX4_ERR("dataman read failure");
+			return;
+		}
+
+		crc32part(reinterpret_cast<uint8_t *>(&mission_safe_point), sizeof(mission_safe_point), csum.rally_checksum);
+		crc32part(reinterpret_cast<uint8_t *>(&mission_safe_point), sizeof(mission_safe_point), csum.all_checksum);
+	}
+
+	csum_pub.publish(csum);
 }
