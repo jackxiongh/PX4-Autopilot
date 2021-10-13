@@ -137,11 +137,11 @@ int px4_simple_app_main(int argc, char *argv[])
 	orb_advert_t drl_pub = orb_advertise(ORB_ID(actuator_outputs_drl), &drl_control);
 	drl_control.timestamp = hrt_absolute_time();
 	int input[6] = {0, 0, 1800, 1800, 1800, 1800};
-	for (int i = 1; i <= (argc - 1) && i <= 2; i++)
+	for (int i = 1; i <= (argc - 1); i++)
 	{
 		input[i] = atoi(argv[i]);
 	}
-	PX4_INFO("[%d, %d, %d, %d, %d]\n", input[1], input[2], input[3], input[4], input[5]);
+	PX4_INFO("[%d, %d, %d, %d, %d]", input[1], input[2], input[3], input[4], input[5]);
 	if(input[1] == 1)
 	{
 		drl_control.usedrl = true;
