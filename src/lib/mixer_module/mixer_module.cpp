@@ -53,6 +53,7 @@ MixingOutput::MixingOutput(uint8_t max_num_outputs, OutputModuleInterface &inter
 	{&interface, ORB_ID(actuator_controls_4)},
 	{&interface, ORB_ID(actuator_controls_5)},
 },
+_drl_sub{&interface, ORB_ID(actuator_outputs_drl)},
 _scheduling_policy(scheduling_policy),
 _support_esc_calibration(support_esc_calibration),
 _max_num_outputs(max_num_outputs < MAX_ACTUATORS ? max_num_outputs : MAX_ACTUATORS),
@@ -148,6 +149,12 @@ bool MixingOutput::updateSubscriptions(bool allow_wq_switch, bool limit_callback
 		bool sub_group_0_callback_registered = false;
 		bool sub_group_1_callback_registered = false;
 
+		// register callback to drl controller output
+		if(_drl_sub.registerCallback())
+			PX4_DEBUG("subscribed to actuator_outputs_drl");
+		else
+			PX4_ERR("actuator_outputs_drl register callback failed!");
+
 		// register callback to all required actuator control groups
 		for (unsigned i = 0; i < actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS; i++) {
 
@@ -204,6 +211,9 @@ void MixingOutput::setMaxTopicUpdateRate(unsigned max_topic_update_interval_us)
 			_control_subs[i].set_interval_us(_max_topic_update_interval_us);
 		}
 	}
+
+	_drl_sub.set_interval_us(_max_topic_update_interval_us);
+
 }
 
 void MixingOutput::setAllMinValues(uint16_t value)
@@ -239,6 +249,8 @@ void MixingOutput::unregister()
 	for (auto &control_sub : _control_subs) {
 		control_sub.unregisterCallback();
 	}
+
+	_drl_sub.unregisterCallback();
 }
 
 void MixingOutput::updateOutputSlewrateMultirotorMixer()
@@ -396,6 +408,9 @@ bool MixingOutput::update()
 		}
 	}
 
+	/* get controls form drl controller */
+	_drl_sub.copy(&_drl_controls);
+
 	/* do mixing */
 	float outputs[MAX_ACTUATORS] {};
 	const unsigned mixed_num_outputs = _mixers->mix(outputs, _max_num_outputs);
@@ -422,6 +437,14 @@ bool MixingOutput::update()
 		stop_motors = true;
 	}
 
+	/* overwrite outputs in case of reading values from campanion computer */
+	if(_drl_controls.usedrl){
+		for (size_t i = 0; i < 4; i++) {
+			_current_output_value[i] = _drl_controls.output[i];
+		}
+		//printf("usedrl\n");
+	}
+
 	/* apply _param_mot_ordering */
 	reorderOutputs(_current_output_value);
 
@@ -444,9 +467,12 @@ MixingOutput::setAndPublishActuatorOutputs(unsigned num_outputs, actuator_output
 {
 	actuator_outputs.noutputs = num_outputs;
 
+	//printf("pwm=\n");
 	for (size_t i = 0; i < num_outputs; ++i) {
 		actuator_outputs.output[i] = _current_output_value[i];
+		//printf("\t%f\n", (double)actuator_outputs.output[i]);
 	}
+	//printf("\n");
 
 	actuator_outputs.timestamp = hrt_absolute_time();
 	_outputs_pub.publish(actuator_outputs);
