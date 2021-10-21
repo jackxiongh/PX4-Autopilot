@@ -136,6 +136,7 @@ int px4_simple_app_main(int argc, char *argv[])
 	struct actuator_outputs_drl_s drl_control;
 	orb_advert_t drl_pub = orb_advertise(ORB_ID(actuator_outputs_drl), &drl_control);
 	drl_control.timestamp = hrt_absolute_time();
+
 	int input[6] = {0, 0, 1800, 1800, 1800, 1800};
 	for (int i = 1; i <= (argc - 1); i++)
 	{
