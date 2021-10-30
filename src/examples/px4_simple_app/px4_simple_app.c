@@ -50,11 +50,16 @@
 #include <uORB/uORB.h>
 #include <uORB/topics/vehicle_acceleration.h>
 #include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/actuator_outputs_drl.h>
+
+//#define ORIGINAL
+#define OVERWRITE_PWM
 
 __EXPORT int px4_simple_app_main(int argc, char *argv[]);
 
 int px4_simple_app_main(int argc, char *argv[])
 {
+#ifdef ORIGINAL
 	PX4_INFO("Hello Sky!");
 
 	/* subscribe to vehicle_acceleration topic */
@@ -126,4 +131,31 @@ int px4_simple_app_main(int argc, char *argv[])
 	PX4_INFO("exiting");
 
 	return 0;
+#endif
+#ifdef OVERWRITE_PWM
+	struct actuator_outputs_drl_s drl_control;
+	orb_advert_t drl_pub = orb_advertise(ORB_ID(actuator_outputs_drl), &drl_control);
+	drl_control.timestamp = hrt_absolute_time();
+	int input[6] = {0, 0, 1800, 1800, 1800, 1800};
+	for (int i = 1; i <= (argc - 1); i++)
+	{
+		input[i] = atoi(argv[i]);
+	}
+	PX4_INFO("[%d, %d, %d, %d, %d]", input[1], input[2], input[3], input[4], input[5]);
+	if(input[1] == 1)
+	{
+		drl_control.usedrl = true;
+		for(int i = 0; i < 4; i++)
+		{
+			drl_control.output[i] = input[i + 2];
+		}
+
+	}
+	else
+	{
+		drl_control.usedrl = false;
+	}
+	orb_publish(ORB_ID(actuator_outputs_drl), drl_pub, &drl_control);
+	return 0;
+#endif
 }
