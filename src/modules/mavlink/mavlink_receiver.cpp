@@ -288,8 +288,13 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_gimbal_device_information(msg);
 		break;
 
+    //  user defined
     case MAVLINK_MSG_ID_KEY_COMMAND:
         handle_message_key_command(msg);
+        break;
+
+    case MAVLINK_MSG_ID_ACTUATOR_OUTPUTS_DRL:
+        handle_message_actuator_outputs_drl(msg);
         break;
 
 	default:
@@ -3238,6 +3243,8 @@ void MavlinkReceiver::stop()
 	pthread_join(_thread, nullptr);
 }
 
+// user defined
+
 void
 MavlinkReceiver::handle_message_key_command(mavlink_message_t *msg)
 {
@@ -3254,5 +3261,30 @@ MavlinkReceiver::handle_message_key_command(mavlink_message_t *msg)
 
     } else {
         orb_publish(ORB_ID(key_command), _key_command_pub, &key);
+    }
+}
+
+void
+MavlinkReceiver::handle_message_actuator_outputs_drl(mavlink_message_t *msg)
+{
+    mavlink_actuator_outputs_drl_t man;
+    // mavlink msg "man"
+    mavlink_msg_actuator_outputs_drl_decode(msg, &man);
+    // uorb msg "actuator"
+    struct actuator_outputs_drl_s actuator = {};
+
+    //  from mavlink msg to uorb msg
+    actuator.timestamp = hrt_absolute_time();
+    actuator.usedrl = man.usedrl;
+    actuator.output[0] = man.output[0];
+    actuator.output[1] = man.output[1];
+    actuator.output[2] = man.output[2];
+    actuator.output[3] = man.output[3];
+
+    if (_actuator_outputs_drl_pub == nullptr) {
+        _actuator_outputs_drl_pub = orb_advertise(ORB_ID(actuator_outputs_drl), &actuator);
+
+    } else {
+        orb_publish(ORB_ID(actuator_outputs_drl), _actuator_outputs_drl_pub, &actuator);
     }
 }
