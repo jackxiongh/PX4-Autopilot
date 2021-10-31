@@ -443,6 +443,8 @@ bool MixingOutput::update()
 		for (size_t i = 0; i < 4; i++) {
 			_current_output_value[i] = _drl_controls.output[i];
 		}
+
+		stop_motors = false;
 	}
 
 	/* now return the outputs to the driver */
