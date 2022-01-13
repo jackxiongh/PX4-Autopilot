@@ -383,7 +383,9 @@ void Simulator::handle_message_hil_gps(const mavlink_message_t *msg)
 	mavlink_hil_gps_t hil_gps;
 	mavlink_msg_hil_gps_decode(msg, &hil_gps);
 
-	if (!_gps_blocked) {
+//    if (!_gps_blocked && false)     // block gps sim
+    if (!_gps_blocked)
+    {
 		sensor_gps_s gps{};
 
 		gps.lat = hil_gps.lat;
