@@ -53,8 +53,9 @@ bool FlightTaskAuto::activate(const vehicle_local_position_setpoint_s &last_setp
 	bool ret = FlightTask::activate(last_setpoint);
 	_position_setpoint = _position;
 	_velocity_setpoint = _velocity;
+	_roll_setpoint = _pitch_setpoint = 0.0f;
 	_yaw_setpoint = _yaw_sp_prev = _yaw;
-	_yawspeed_setpoint = 0.0f;
+	_rollspeed_setpoint = _pitchspeed_setpoint = _yawspeed_setpoint = 0.0f;
 	_setDefaultConstraints();
 	return ret;
 }

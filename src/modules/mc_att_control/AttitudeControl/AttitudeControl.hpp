@@ -75,7 +75,19 @@ public:
 	 * @param qd desired vehicle attitude setpoint
 	 * @param yawspeed_setpoint [rad/s] yaw feed forward angular rate in world frame
 	 */
-	void setAttitudeSetpoint(const matrix::Quatf &qd, const float yawspeed_setpoint) { _attitude_setpoint_q = qd; _attitude_setpoint_q.normalize(); _yawspeed_setpoint = yawspeed_setpoint; }
+	void setAttitudeSetpoint(
+		const matrix::Quatf &qd,
+		const float rollspeed_setpoint,
+		const float pitchspeed_setpoint,
+		const float yawspeed_setpoint
+	)
+	{
+		_attitude_setpoint_q = qd;
+		_attitude_setpoint_q.normalize();
+		_rollspeed_setpoint = rollspeed_setpoint;
+		_pitchspeed_setpoint = pitchspeed_setpoint;
+		_yawspeed_setpoint = yawspeed_setpoint;
+	}
 
 	/**
 	 * Adjust last known attitude setpoint by a delta rotation
@@ -97,5 +109,7 @@ private:
 	float _yaw_w{0.f}; ///< yaw weight [0,1] to deprioritize caompared to roll and pitch
 
 	matrix::Quatf _attitude_setpoint_q; ///< latest known attitude setpoint e.g. from position control
+	float _rollspeed_setpoint{0.f};
+	float _pitchspeed_setpoint{0.f};
 	float _yawspeed_setpoint{0.f}; ///< latest known yawspeed feed-forward setpoint
 };

@@ -47,6 +47,18 @@ bool FlightTaskManualAcceleration::activate(const vehicle_local_position_setpoin
 {
 	bool ret = FlightTaskManualAltitudeSmoothVel::activate(last_setpoint);
 
+	if(PX4_ISFINITE(last_setpoint.roll) && PX4_ISFINITE(last_setpoint.pitch))
+	{
+		_roll_setpoint = last_setpoint.roll;
+		_pitch_setpoint = last_setpoint.pitch;
+		_rollspeed_setpoint = _pitchspeed_setpoint = 0.0f;
+	}
+	else
+	{
+		_roll_setpoint = _pitch_setpoint = 0.0f;
+		_rollspeed_setpoint = _pitchspeed_setpoint = 0.0f;
+	}
+
 	_stick_acceleration_xy.resetPosition();
 
 	if (PX4_ISFINITE(last_setpoint.vx) && PX4_ISFINITE(last_setpoint.vy)) {
@@ -67,11 +79,72 @@ bool FlightTaskManualAcceleration::update()
 {
 	bool ret = FlightTaskManualAltitudeSmoothVel::update();
 
-	_stick_yaw.generateYawSetpoint(_yawspeed_setpoint, _yaw_setpoint,
-				       _sticks.getPositionExpo()(3) * math::radians(_param_mpc_man_y_max.get()), _yaw, _deltatime);
-	_stick_acceleration_xy.generateSetpoints(_sticks.getPositionExpo().slice<2, 1>(0, 0), _yaw, _yaw_setpoint, _position,
-			_velocity_setpoint_feedback.xy(), _deltatime);
-	_stick_acceleration_xy.getSetpoints(_position_setpoint, _velocity_setpoint, _acceleration_setpoint);
+	_vehicle_status_sub.update(&_vehicle_status);
+
+	if(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_ACRO)
+	{
+
+		_roll_setpoint = _rollspeed_setpoint = 0.f; // TODO: full pose acro mode
+
+		float desired_pitchspeed = -_sticks.getPositionExpo()(0) * math::radians(_param_mpc_man_p_max.get());
+		float desired_yawspeed = _sticks.getPositionExpo()(3) * math::radians(_param_mpc_man_y_max.get());
+
+		if(
+			((_pitch * M_RAD_TO_DEG_F >= 80.f) && desired_pitchspeed > 0) ||
+			((_pitch * M_RAD_TO_DEG_F <= -80.f) && desired_pitchspeed < 0)
+		)
+			desired_pitchspeed *= ScaleInput(fabs(_pitch * M_RAD_TO_DEG_F) - 80.f);
+
+		_stick_pitch.generateYawSetpoint(
+			_pitchspeed_setpoint,
+			_pitch_setpoint,
+			desired_pitchspeed,
+			_pitch,
+			_deltatime
+		);
+
+
+		_stick_yaw.generateYawSetpoint(
+			_yawspeed_setpoint,
+			_yaw_setpoint,
+			desired_yawspeed,
+			_yaw,
+			_deltatime
+		);
+		
+		_stick_acceleration_xy.generateSetpoints(
+			Vector2f({0, _sticks.getPositionExpo()(1)}),
+			_yaw,
+			_yaw_setpoint,
+			_position,
+			_velocity_setpoint_feedback.xy(),
+			_deltatime
+		);
+
+		_stick_acceleration_xy.getSetpoints(_position_setpoint, _velocity_setpoint, _acceleration_setpoint);
+
+	}
+	else
+	{
+		_stick_yaw.generateYawSetpoint(
+			_yawspeed_setpoint,
+			_yaw_setpoint,
+			_sticks.getPositionExpo()(3) * math::radians(_param_mpc_man_y_max.get()),
+			_yaw,
+			_deltatime
+		);
+
+		_stick_acceleration_xy.generateSetpoints(
+			_sticks.getPositionExpo().slice<2, 1>(0, 0),
+			_yaw,
+			_yaw_setpoint,
+			_position,
+			_velocity_setpoint_feedback.xy(),
+			_deltatime
+		);
+
+		_stick_acceleration_xy.getSetpoints(_position_setpoint, _velocity_setpoint, _acceleration_setpoint);
+	}
 
 	_constraints.want_takeoff = _checkTakeoff();
 

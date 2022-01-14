@@ -75,6 +75,8 @@ void PositionControl::setState(const PositionControlStates &states)
 {
 	_pos = states.position;
 	_vel = states.velocity;
+	_roll = states.roll;
+	_pitch = states.pitch;
 	_yaw = states.yaw;
 	_vel_dot = states.acceleration;
 }
@@ -84,7 +86,11 @@ void PositionControl::setInputSetpoint(const vehicle_local_position_setpoint_s &
 	_pos_sp = Vector3f(setpoint.x, setpoint.y, setpoint.z);
 	_vel_sp = Vector3f(setpoint.vx, setpoint.vy, setpoint.vz);
 	_acc_sp = Vector3f(setpoint.acceleration);
+	_roll_sp = setpoint.roll;
+	_pitch_sp = setpoint.pitch;
 	_yaw_sp = setpoint.yaw;
+	_rollspeed_sp = setpoint.rollspeed;
+	_pitchspeed_sp = setpoint.pitchspeed;
 	_yawspeed_sp = setpoint.yawspeed;
 }
 
@@ -99,7 +105,13 @@ bool PositionControl::update(const float dt)
 	_velocityControl(dt);
 
 	_yawspeed_sp = PX4_ISFINITE(_yawspeed_sp) ? _yawspeed_sp : 0.f;
-	_yaw_sp = PX4_ISFINITE(_yaw_sp) ? _yaw_sp : _yaw; // TODO: better way to disable yaw control
+	_yaw_sp = PX4_ISFINITE(_yaw_sp) ? _yaw_sp : _yaw; // if yaw setpoint is NAN, set current value to disable att ctrl
+
+	_rollspeed_sp = PX4_ISFINITE(_rollspeed_sp) ? _rollspeed_sp : 0.f;
+	_roll_sp = PX4_ISFINITE(_roll_sp) ? _roll_sp : _roll;
+
+	_pitchspeed_sp = PX4_ISFINITE(_pitchspeed_sp) ? _pitchspeed_sp : 0.f;
+	_pitch_sp = PX4_ISFINITE(_pitch_sp) ? _pitch_sp : _pitch;
 
 	return valid && _updateSuccessful();
 }
@@ -213,17 +225,36 @@ void PositionControl::getLocalPositionSetpoint(vehicle_local_position_setpoint_s
 	local_position_setpoint.x = _pos_sp(0);
 	local_position_setpoint.y = _pos_sp(1);
 	local_position_setpoint.z = _pos_sp(2);
+	local_position_setpoint.roll = _roll_sp;
+	local_position_setpoint.pitch = _pitch_sp;
 	local_position_setpoint.yaw = _yaw_sp;
+	local_position_setpoint.rollspeed = _rollspeed_sp;
+	local_position_setpoint.pitchspeed = _pitchspeed_sp;
 	local_position_setpoint.yawspeed = _yawspeed_sp;
 	local_position_setpoint.vx = _vel_sp(0);
 	local_position_setpoint.vy = _vel_sp(1);
 	local_position_setpoint.vz = _vel_sp(2);
 	_acc_sp.copyTo(local_position_setpoint.acceleration);
 	_thr_sp.copyTo(local_position_setpoint.thrust);
+
 }
 
 void PositionControl::getAttitudeSetpoint(vehicle_attitude_setpoint_s &attitude_setpoint) const
 {
-	ControlMath::thrustToAttitude(_thr_sp, _yaw_sp, attitude_setpoint);
+	// thrust conversion
+	const Dcmf R{Eulerf{_roll, _pitch, _yaw}};
+	Vector3f thrust_body_sp = R.T() * _thr_sp;
+	thrust_body_sp.copyTo(attitude_setpoint.thrust_body);
+
+	// attitude passthrough
+	const Quatf q_sp{Eulerf{_roll_sp, _pitch_sp, _yaw_sp}};
+	q_sp.copyTo(attitude_setpoint.q_d);
+	attitude_setpoint.roll_sp_move_rate = _rollspeed_sp;
+	attitude_setpoint.pitch_sp_move_rate = _pitchspeed_sp;
 	attitude_setpoint.yaw_sp_move_rate = _yawspeed_sp;
+
+	// for logging only
+	attitude_setpoint.roll_body = _roll_sp;
+	attitude_setpoint.pitch_body = _pitch_sp;
+	attitude_setpoint.yaw_body = _yaw_sp;
 }

@@ -341,6 +341,10 @@ rtps:
     id: 158
   - msg: estimator_event_flags
     id: 159
+  ######### custom topics below #########
+  - msg: arm_rotation
+    id: 160
+    send: true
   ########## multi topics: begin ##########
   - msg: actuator_controls_0
     id: 180

@@ -2,9 +2,11 @@
 #include <mathlib/mathlib.h>
 #include <lib/ecl/geo/geo.h>
 
+using namespace matrix;
+
 constexpr uint64_t FlightTask::_timeout;
 // First index of empty_setpoint corresponds to time-stamp and requires a finite number.
-const vehicle_local_position_setpoint_s FlightTask::empty_setpoint = {0, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, {NAN, NAN, NAN}, {NAN, NAN, NAN}, {NAN, NAN, NAN}, {}};
+const vehicle_local_position_setpoint_s FlightTask::empty_setpoint = {0, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, {NAN, NAN, NAN}, {NAN, NAN, NAN}, {NAN, NAN, NAN}, {}};
 
 const vehicle_constraints_s FlightTask::empty_constraints = {0, NAN, NAN, NAN, false, {}};
 const landing_gear_s FlightTask::empty_landing_gear_default_keep = {0, landing_gear_s::GEAR_KEEP, {}};
@@ -31,6 +33,7 @@ bool FlightTask::updateInitialize()
 	_time_stamp_last = _time_stamp_current;
 
 	_sub_vehicle_local_position.update();
+	_sub_vehicle_attitude.update();
 	_sub_home_position.update();
 
 	_evaluateVehicleLocalPosition();
@@ -88,7 +91,11 @@ const vehicle_local_position_setpoint_s FlightTask::getPositionSetpoint()
 	vehicle_local_position_setpoint.vy = _velocity_setpoint(1);
 	vehicle_local_position_setpoint.vz = _velocity_setpoint(2);
 
+	vehicle_local_position_setpoint.roll = _roll_setpoint;
+	vehicle_local_position_setpoint.pitch = _pitch_setpoint;
 	vehicle_local_position_setpoint.yaw = _yaw_setpoint;
+	vehicle_local_position_setpoint.rollspeed = _rollspeed_setpoint;
+	vehicle_local_position_setpoint.pitchspeed = _pitchspeed_setpoint;
 	vehicle_local_position_setpoint.yawspeed = _yawspeed_setpoint;
 
 	_acceleration_setpoint.copyTo(vehicle_local_position_setpoint.acceleration);
@@ -106,7 +113,11 @@ void FlightTask::_resetSetpoints()
 	_velocity_setpoint.setNaN();
 	_acceleration_setpoint.setNaN();
 	_jerk_setpoint.setNaN();
+	_roll_setpoint = NAN;
+	_pitch_setpoint = NAN;
 	_yaw_setpoint = NAN;
+	_rollspeed_setpoint = NAN;
+	_pitchspeed_setpoint = NAN;
 	_yawspeed_setpoint = NAN;
 }
 
@@ -114,14 +125,23 @@ void FlightTask::_evaluateVehicleLocalPosition()
 {
 	_position.setAll(NAN);
 	_velocity.setAll(NAN);
+	_roll = NAN;
+	_pitch = NAN;
 	_yaw = NAN;
 	_dist_to_bottom = NAN;
 
 	// Only use vehicle-local-position topic fields if the topic is received within a certain timestamp
-	if ((_time_stamp_current - _sub_vehicle_local_position.get().timestamp) < _timeout) {
+	if (
+		(_time_stamp_current - _sub_vehicle_local_position.get().timestamp) < _timeout &&
+		(_time_stamp_current - _sub_vehicle_attitude.get().timestamp) < _timeout
+	) 
+	{
 
-		// yaw
-		_yaw = _sub_vehicle_local_position.get().heading;
+		// attitude
+		Eulerf RPY{Quatf(_sub_vehicle_attitude.get().q)};
+		_roll = RPY.phi();
+		_pitch = RPY.theta();
+		_yaw = RPY.psi();
 
 		// position
 		if (_sub_vehicle_local_position.get().xy_valid) {

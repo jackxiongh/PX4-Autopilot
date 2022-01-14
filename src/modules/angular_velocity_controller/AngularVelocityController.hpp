@@ -59,6 +59,8 @@
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/vehicle_thrust_setpoint.h>
 #include <uORB/topics/vehicle_torque_setpoint.h>
+#include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/vehicle_attitude.h>
 
 using namespace time_literals;
 
@@ -111,6 +113,8 @@ private:
 	uORB::Subscription _vehicle_rates_setpoint_sub{ORB_ID(vehicle_rates_setpoint)};			/**< vehicle rates setpoint subscription */
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};					/**< vehicle status subscription */
 	uORB::Subscription _hover_thrust_estimate_sub{ORB_ID(hover_thrust_estimate)};
+	uORB::Subscription _vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
+	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
 
 	uORB::SubscriptionCallbackWorkItem _vehicle_angular_velocity_sub{this, ORB_ID(vehicle_angular_velocity)};
 
@@ -132,6 +136,9 @@ private:
 	matrix::Vector3f _angular_velocity_sp;		/**< angular velocity setpoint */
 	matrix::Vector3f _angular_acceleration;		/**< angular acceleration (estimated) */
 	matrix::Vector3f _thrust_sp;			/**< thrust setpoint */
+	matrix::Vector3f _centre_of_mass;
+	matrix::Vector3f _v; /**< NED velocity */
+	matrix::Dcmf _R;
 
 	float _hover_thrust{0.5f};			/**< Normalized hover thrust **/
 
@@ -170,6 +177,9 @@ private:
 		(ParamFloat<px4::params::VM_INERTIA_XY>) _param_vm_inertia_xy,
 		(ParamFloat<px4::params::VM_INERTIA_XZ>) _param_vm_inertia_xz,
 		(ParamFloat<px4::params::VM_INERTIA_YZ>) _param_vm_inertia_yz,
+		(ParamFloat<px4::params::VM_COM_X>) _param_vm_com_x,
+		(ParamFloat<px4::params::VM_COM_Y>) _param_vm_com_y,
+		(ParamFloat<px4::params::VM_COM_Z>) _param_vm_com_z,
 
 		(ParamFloat<px4::params::MPC_THR_HOVER>) _param_mpc_thr_hover,
 		(ParamBool<px4::params::MPC_USE_HTE>) _param_mpc_use_hte

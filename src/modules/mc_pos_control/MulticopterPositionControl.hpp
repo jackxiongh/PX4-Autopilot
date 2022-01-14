@@ -58,6 +58,7 @@
 #include <uORB/SubscriptionCallback.hpp>
 #include <uORB/topics/hover_thrust_estimate.h>
 #include <uORB/topics/parameter_update.h>
+#include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
 #include <uORB/topics/vehicle_constraints.h>
 #include <uORB/topics/vehicle_control_mode.h>
@@ -105,6 +106,7 @@ private:
 	uORB::Subscription _trajectory_setpoint_sub{ORB_ID(trajectory_setpoint)};
 	uORB::Subscription _vehicle_land_detected_sub{ORB_ID(vehicle_land_detected)};
 	uORB::Subscription _vehicle_constraints_sub{ORB_ID(vehicle_constraints)};
+	uORB::Subscription _vehicle_attitude_sub {ORB_ID(vehicle_attitude)};
 
 	hrt_abstime	_time_stamp_last_loop{0};		/**< time stamp of last loop iteration */
 
@@ -112,6 +114,7 @@ private:
 
 	vehicle_control_mode_s _control_mode{};
 	vehicle_local_position_setpoint_s _setpoint{};
+	vehicle_attitude_s _vehicle_attitude {};
 	vehicle_constraints_s _vehicle_constraints{
 		.timestamp = 0,
 		.speed_xy = NAN,
@@ -217,7 +220,7 @@ private:
 	/**
 	 * Check for validity of positon/velocity states.
 	 */
-	PositionControlStates set_vehicle_states(const vehicle_local_position_s &local_pos);
+	PositionControlStates set_vehicle_states(const vehicle_local_position_s &local_pos, const vehicle_attitude_s &attitude);
 
 	/**
 	 * Adjust the setpoint during landing.

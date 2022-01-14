@@ -401,6 +401,28 @@ PARAM_DEFINE_FLOAT(MPC_TKO_SPEED, 1.5f);
 PARAM_DEFINE_FLOAT(MPC_MAN_TILT_MAX, 35.0f);
 
 /**
+ * Max manual roll rate
+ *
+ * @unit deg/s
+ * @min 0.0
+ * @max 400
+ * @decimal 1
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_MAN_R_MAX, 150.0f);
+
+/**
+ * Max manual pitch rate
+ *
+ * @unit deg/s
+ * @min 0.0
+ * @max 400
+ * @decimal 1
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_MAN_P_MAX, 150.0f);
+
+/**
  * Max manual yaw rate
  *
  * @unit deg/s

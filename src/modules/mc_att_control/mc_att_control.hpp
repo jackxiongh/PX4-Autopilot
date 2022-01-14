@@ -129,6 +129,7 @@ private:
 
 	bool _landed{true};
 	bool _reset_yaw_sp{true};
+	bool _in_acro_mode{false};
 	bool _vehicle_type_rotary_wing{true};
 	bool _vtol{false};
 	bool _vtol_tailsitter{false};

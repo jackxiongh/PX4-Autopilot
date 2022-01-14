@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2013-2019 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,108 +32,51 @@
  ****************************************************************************/
 
 /**
- * @file vehicle_model_params.c
- * Parameters for vehicle model.
+ * @file ActuatorEffectivenessOmniHexParams.c
  *
- * @author Julien Lecoeur <julien.lecoeur@gmail.com>
+ * Parameters for the detailed control allocation of Omni hex.
+ *
+ * @author Yueqian Liu <yueqianliu@outlook.com>
  */
 
 /**
- * Mass
+ * Max step limitation for arm rotation servo
  *
- * @unit kg
- * @decimal 5
- * @increment 0.00001
- * @group Vehicle Model
+ * @group Control Allocation
  */
-PARAM_DEFINE_FLOAT(VM_MASS, 1.f);
+PARAM_DEFINE_FLOAT(CA_OH_ARM_D_MAX, 0.05);
 
 /**
- * Inertia matrix, XX component
+ * Force threshold for arm rotation output
  *
- * @unit kg m^2
- * @decimal 5
- * @increment 0.00001
- * @group Vehicle Model
+ * @group Control Allocation
  */
-PARAM_DEFINE_FLOAT(VM_INERTIA_XX, 0.01f);
+PARAM_DEFINE_FLOAT(CA_OH_FORCE_THR, 5.0);
 
 /**
- * Inertia matrix, YY component
+ * Enable printing debug info
  *
- * @unit kg m^2
- * @decimal 5
- * @increment 0.00001
- * @group Vehicle Model
+ * @group Control Allocation
  */
-PARAM_DEFINE_FLOAT(VM_INERTIA_YY, 0.01f);
+PARAM_DEFINE_INT32(CA_OH_DEBUG_EN, 0);
 
 /**
- * Inertia matrix, ZZ component
+ * Angle threshold in radians (aligned damping)
  *
- * @unit kg m^2
- * @decimal 5
- * @increment 0.00001
- * @group Vehicle Model
+ * @group Control Allocation
  */
-PARAM_DEFINE_FLOAT(VM_INERTIA_ZZ, 0.01f);
+PARAM_DEFINE_FLOAT(CA_OH_DAMP_THR, 0.175);
 
 /**
- * Inertia matrix, XY component
+ * Angle threshold in radians (aligned freeze)
  *
- * @unit kg m^2
- * @decimal 5
- * @increment 0.00001
- * @group Vehicle Model
+ * @group Control Allocation
  */
-PARAM_DEFINE_FLOAT(VM_INERTIA_XY, 0.f);
+PARAM_DEFINE_FLOAT(CA_OH_ALGN_THR, 0.09);
 
 /**
- * Inertia matrix, XZ component
+ * Positive direction for arm rotation
  *
- * @unit kg m^2
- * @decimal 5
- * @increment 0.00001
- * @group Vehicle Model
+ * @group Control Allocation
  */
-PARAM_DEFINE_FLOAT(VM_INERTIA_XZ, 0.f);
-
-/**
- * Inertia matrix, YZ component
- *
- * @unit kg m^2
- * @decimal 5
- * @increment 0.00001
- * @group Vehicle Model
- */
-PARAM_DEFINE_FLOAT(VM_INERTIA_YZ, 0.f);
-
-/**
- * Centre of mass, X component in body frame
- *
- * @unit m
- * @decimal 5
- * @increment 0.00001
- * @group Vehicle Model
- */
-PARAM_DEFINE_FLOAT(VM_COM_X, 0.f);
-
-/**
- * Centre of mass, Y component in body frame
- *
- * @unit m
- * @decimal 5
- * @increment 0.00001
- * @group Vehicle Model
- */
-PARAM_DEFINE_FLOAT(VM_COM_Y, 0.f);
-
-/**
- * Centre of mass, Z component in body frame
- *
- * @unit m
- * @decimal 5
- * @increment 0.00001
- * @group Vehicle Model
- */
-PARAM_DEFINE_FLOAT(VM_COM_Z, 0.f);
+PARAM_DEFINE_INT32(CA_OH_ROTATE_DIR, 0);

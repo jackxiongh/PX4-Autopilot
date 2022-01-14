@@ -97,8 +97,21 @@ matrix::Vector3f AttitudeControl::update(const Quatf &q) const
 	// and multiply it by the yaw setpoint rate (yawspeed_setpoint).
 	// This yields a vector representing the commanded rotatation around the world z-axis expressed in the body frame
 	// such that it can be added to the rates setpoint.
+	Vector3f feedforward({_rollspeed_setpoint, _pitchspeed_setpoint, 0.f});
 	if (is_finite(_yawspeed_setpoint)) {
-		rate_setpoint += q.inversed().dcm_z() * _yawspeed_setpoint;
+		feedforward += q.inversed().dcm_z() * _yawspeed_setpoint;
+	}
+
+	for (int i = 0; i < 3; i++)
+	{
+		if (is_finite(rate_setpoint(i)) && is_finite(feedforward(i)))
+		{
+			rate_setpoint(i) += feedforward(i);
+		}
+		else if (!is_finite(rate_setpoint(i)))
+		{
+			rate_setpoint(i) = feedforward(i);
+		}
 	}
 
 	// limit rates

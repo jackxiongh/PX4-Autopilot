@@ -191,7 +191,10 @@ int MulticopterPositionControl::parameters_update(bool force)
 	return OK;
 }
 
-PositionControlStates MulticopterPositionControl::set_vehicle_states(const vehicle_local_position_s &local_pos)
+PositionControlStates MulticopterPositionControl::set_vehicle_states(
+	const vehicle_local_position_s &local_pos,
+	const vehicle_attitude_s &attitude
+)
 {
 	PositionControlStates states;
 
@@ -241,7 +244,10 @@ PositionControlStates MulticopterPositionControl::set_vehicle_states(const vehic
 		_vel_z_deriv.reset();
 	}
 
-	states.yaw = local_pos.heading;
+	const Eulerf att{Quatf(attitude.q)};
+	states.roll = att.phi();
+	states.pitch = att.theta();
+	states.yaw = att.psi();
 
 	return states;
 }
@@ -285,8 +291,10 @@ void MulticopterPositionControl::Run()
 				}
 			}
 		}
+		
+		_vehicle_attitude_sub.update(&_vehicle_attitude);
 
-		PositionControlStates states{set_vehicle_states(local_pos)};
+		PositionControlStates states{set_vehicle_states(local_pos, _vehicle_attitude)};
 
 		if (_control_mode.flag_multicopter_position_control_enabled) {
 
@@ -537,6 +545,8 @@ void MulticopterPositionControl::reset_setpoint_to_nan(vehicle_local_position_se
 {
 	setpoint.x = setpoint.y = setpoint.z = NAN;
 	setpoint.vx = setpoint.vy = setpoint.vz = NAN;
+	setpoint.roll = setpoint.rollspeed = NAN;
+	setpoint.pitch = setpoint.pitchspeed = NAN;
 	setpoint.yaw = setpoint.yawspeed = NAN;
 	setpoint.acceleration[0] = setpoint.acceleration[1] = setpoint.acceleration[2] = NAN;
 	setpoint.thrust[0] = setpoint.thrust[1] = setpoint.thrust[2] = NAN;

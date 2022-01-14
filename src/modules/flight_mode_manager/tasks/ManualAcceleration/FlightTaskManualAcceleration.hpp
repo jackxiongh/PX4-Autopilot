@@ -60,9 +60,16 @@ public:
 private:
 	StickAccelerationXY _stick_acceleration_xy;
 	StickYaw _stick_yaw;
+	StickYaw _stick_pitch;
 
 	void _ekfResetHandlerPositionXY() override;
 	void _ekfResetHandlerVelocityXY() override;
 
 	WeatherVane *_weathervane_yaw_handler{nullptr}; /**< external weathervane library, used to implement a yaw control law that turns the vehicle nose into the wind */
+
+	float ScaleInput(const float x) const
+	{
+		return (- 0.5f * sinf(M_PI_F * 0.1f * x - M_PI_2_F) + 0.5f);
+	}
+
 };

@@ -53,6 +53,9 @@
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_trajectory_waypoint.h>
 #include <uORB/topics/home_position.h>
+#include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/arm_rotation.h>
 #include <lib/ecl/geo/geo.h>
 #include <lib/weather_vane/WeatherVane.hpp>
 
@@ -186,7 +189,10 @@ public:
 protected:
 	uORB::SubscriptionData<vehicle_local_position_s> _sub_vehicle_local_position{ORB_ID(vehicle_local_position)};
 	uORB::SubscriptionData<home_position_s> _sub_home_position{ORB_ID(home_position)};
+	uORB::SubscriptionData<vehicle_attitude_s> _sub_vehicle_attitude{ORB_ID(vehicle_attitude)};
 	uORB::Subscription _vehicle_local_position_setpoint_sub{ORB_ID(vehicle_local_position_setpoint)};
+	uORB::Subscription _vehicle_status_sub{(ORB_ID(vehicle_status))};
+	uORB::Subscription _arm_rotation_sub{(ORB_ID(arm_rotation))};
 
 	/** Reset all setpoints to NAN */
 	void _resetSetpoints();
@@ -231,6 +237,8 @@ protected:
 	matrix::Vector3f _position; /**< current vehicle position */
 	matrix::Vector3f _velocity; /**< current vehicle velocity */
 
+	float _roll{};
+	float _pitch{};
 	float _yaw{}; /**< current vehicle yaw heading */
 	float _dist_to_bottom{}; /**< current height above ground level */
 	float _dist_to_ground{}; /**< equals _dist_to_bottom if valid, height above home otherwise */
@@ -250,8 +258,14 @@ protected:
 	matrix::Vector3f _acceleration_setpoint_feedback;
 	matrix::Vector3f _jerk_setpoint;
 
+	float _roll_setpoint{};
+	float _pitch_setpoint{};
 	float _yaw_setpoint{};
+	float _rollspeed_setpoint{};
+	float _pitchspeed_setpoint{};
 	float _yawspeed_setpoint{};
+
+	bool _arm_rotation_limit_reached{};
 
 	ekf_reset_counters_s _reset_counters{}; ///< Counters for estimator local position resets
 
@@ -260,6 +274,7 @@ protected:
 	 * The constraints can vary with tasks.
 	 */
 	vehicle_constraints_s _constraints{};
+	vehicle_status_s _vehicle_status{};
 
 	landing_gear_s _gear{};
 

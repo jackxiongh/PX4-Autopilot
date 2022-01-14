@@ -116,6 +116,7 @@ set(models
 	iris_rplidar
 	iris_vision
 	nxp_cupcar
+	omni_hex
 	plane
 	plane_cam
 	plane_catapult

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2018 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,50 +30,49 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+
 /**
- * @file FlightTaskFailsafe.cpp
+ * @file ActuatorEffectivenessOmniHex.hpp
+ *
+ * Actuator effectiveness for omnidirectional hexacopter
+ *
+ * @author Yueqian Liu <yueqianliu@outlook.com>
  */
 
-#include "FlightTaskFailsafe.hpp"
+#pragma once
 
-bool FlightTaskFailsafe::activate(const vehicle_local_position_setpoint_s &last_setpoint)
+#include "ActuatorEffectiveness.hpp"
+
+#include <px4_platform_common/module_params.h>
+#include <uORB/Subscription.hpp>
+#include <uORB/topics/parameter_update.h>
+#include <uORB/SubscriptionInterval.hpp>
+
+using namespace time_literals;
+
+class ActuatorEffectivenessOmniHex: public ModuleParams, public ActuatorEffectiveness
 {
-	bool ret = FlightTask::activate(last_setpoint);
-	_position_setpoint = _position;
-	_velocity_setpoint.zero();
-	_acceleration_setpoint = matrix::Vector3f(0.f, 0.f, .3f);
-	_roll_setpoint = _pitch_setpoint = 0.f;
-	_yaw_setpoint = _yaw;
-	_rollspeed_setpoint = _pitchspeed_setpoint = _yawspeed_setpoint = 0.f;
-	return ret;
-}
+public:
+	ActuatorEffectivenessOmniHex();
 
-bool FlightTaskFailsafe::update()
-{
-	bool ret = FlightTask::update();
+	virtual ~ActuatorEffectivenessOmniHex() = default;
 
-	if (PX4_ISFINITE(_position(0)) && PX4_ISFINITE(_position(1))) {
-		// stay at current position setpoint
-		_velocity_setpoint(0) = _velocity_setpoint(1) = 0.f;
-		_acceleration_setpoint(0) = _acceleration_setpoint(1) = 0.f;
+	void computeEffectivenessMatrix(float arm_length, float thrust_coef, float torque_coef, matrix::Matrix<float, NUM_AXES, NUM_ACTUATORS> &effectiveness);
+	
+	bool getEffectivenessMatrix(matrix::Matrix<float, NUM_AXES, NUM_ACTUATORS> &matrix) override;
 
-	} else if (PX4_ISFINITE(_velocity(0)) && PX4_ISFINITE(_velocity(1))) {
-		// don't move along xy
-		_position_setpoint(0) = _position_setpoint(1) = NAN;
-		_acceleration_setpoint(0) = _acceleration_setpoint(1) = NAN;
-	}
+	int numActuators() const override { return _num_actuators; }
+	
+private:
 
-	if (PX4_ISFINITE(_position(2))) {
-		// stay at current altitude setpoint
-		_velocity_setpoint(2) = 0.f;
-		_acceleration_setpoint(2) = NAN;
+	int _num_actuators = 12;
+	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
-	} else if (PX4_ISFINITE(_velocity(2))) {
-		// land with landspeed
-		_velocity_setpoint(2) = _param_mpc_land_speed.get();
-		_position_setpoint(2) = NAN;
-		_acceleration_setpoint(2) = NAN;
-	}
+	DEFINE_PARAMETERS(
+		(ParamFloat<px4::params::CA_OH_AL>) _param_ca_oh_al,
+		(ParamFloat<px4::params::CA_OH_CT>) _param_ca_oh_ct,
+		(ParamFloat<px4::params::CA_OH_KT>) _param_ca_oh_kt
+	)
 
-	return ret;
-}
+};
+

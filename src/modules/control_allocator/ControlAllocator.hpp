@@ -45,10 +45,12 @@
 #include <ActuatorEffectivenessMultirotor.hpp>
 #include <ActuatorEffectivenessStandardVTOL.hpp>
 #include <ActuatorEffectivenessTiltrotorVTOL.hpp>
+#include <ActuatorEffectivenessOmniHex.hpp>
 
 #include <ControlAllocation.hpp>
 #include <ControlAllocationPseudoInverse.hpp>
 #include <ControlAllocationSequentialDesaturation.hpp>
+#include <ControlAllocationOmniHex.hpp>
 
 #include <lib/matrix/matrix/math.hpp>
 #include <lib/perf/perf_counter.h>
@@ -117,6 +119,7 @@ private:
 		NONE = -1,
 		PSEUDO_INVERSE = 0,
 		SEQUENTIAL_DESATURATION = 1,
+		OMNI_HEX = 2,
 	};
 
 	AllocationMethod _allocation_method_id{AllocationMethod::NONE};
@@ -127,6 +130,7 @@ private:
 		MULTIROTOR = 0,
 		STANDARD_VTOL = 1,
 		TILTROTOR_VTOL = 2,
+		OMNI_HEX = 3,
 	};
 
 	EffectivenessSource _effectiveness_source_id{EffectivenessSource::NONE};

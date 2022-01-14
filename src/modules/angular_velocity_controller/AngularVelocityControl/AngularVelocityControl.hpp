@@ -96,7 +96,8 @@ public:
 	 * @param landed whether the vehicle is on the ground
 	 */
 	void update(const matrix::Vector3f &angular_velocity, const matrix::Vector3f &angular_velocity_sp,
-		    const matrix::Vector3f &angular_acceleration, const float dt, const bool landed);
+		    const matrix::Vector3f &angular_acceleration, const float dt, const bool landed,
+			const matrix::Vector3f &com, const matrix::Vector3f &force);
 
 	/**
 	 * Get the desired angular acceleration

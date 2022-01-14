@@ -46,6 +46,7 @@ bool FlightTaskManualAltitudeSmoothVel::activate(const vehicle_local_position_se
 	bool ret = FlightTaskManualAltitude::activate(last_setpoint);
 
 	// Check if the previous FlightTask provided setpoints
+	_roll_setpoint = _pitch_setpoint = _rollspeed_setpoint = _pitchspeed_setpoint = 0.f;
 
 	// If the position setpoint is unknown, set to the current postion
 	float z_sp_last = PX4_ISFINITE(last_setpoint.z) ? last_setpoint.z : _position(2);

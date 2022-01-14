@@ -55,7 +55,8 @@ void AngularVelocityControl::setSaturationStatus(const matrix::Vector<bool, 3> &
 }
 
 void AngularVelocityControl::update(const Vector3f &angular_velocity, const Vector3f &angular_velocity_sp,
-				    const Vector3f &angular_acceleration, const float dt, const bool landed)
+				    const Vector3f &angular_acceleration, const float dt, const bool landed,
+					const Vector3f &com, const Vector3f &force)
 {
 	// angular rates error
 	Vector3f angular_velocity_error = angular_velocity_sp - angular_velocity;
@@ -67,7 +68,7 @@ void AngularVelocityControl::update(const Vector3f &angular_velocity, const Vect
 	Vector3f torque_feedforward = _angular_velocity_int + _gain_ff.emult(angular_velocity_sp);
 
 	// compute torque setpoint
-	_torque_sp = _inertia * _angular_accel_sp + torque_feedforward + angular_velocity.cross(_inertia * angular_velocity);
+	_torque_sp = _inertia * _angular_accel_sp + torque_feedforward + angular_velocity.cross(_inertia * angular_velocity) + com.cross(force);
 
 	// update integral only if we are not landed
 	if (!landed) {

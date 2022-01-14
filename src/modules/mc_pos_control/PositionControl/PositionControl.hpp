@@ -41,6 +41,7 @@
 
 #include <lib/mathlib/mathlib.h>
 #include <matrix/matrix/math.hpp>
+#include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
 #include <uORB/topics/vehicle_local_position_setpoint.h>
 
@@ -48,6 +49,8 @@ struct PositionControlStates {
 	matrix::Vector3f position;
 	matrix::Vector3f velocity;
 	matrix::Vector3f acceleration;
+	float roll;
+	float pitch;
 	float yaw;
 };
 
@@ -200,6 +203,8 @@ private:
 	matrix::Vector3f _vel; /**< current velocity */
 	matrix::Vector3f _vel_dot; /**< velocity derivative (replacement for acceleration estimate) */
 	matrix::Vector3f _vel_int; /**< integral term of the velocity controller */
+	float _roll{};
+	float _pitch{};
 	float _yaw{}; /**< current heading */
 
 	// Setpoints
@@ -207,6 +212,10 @@ private:
 	matrix::Vector3f _vel_sp; /**< desired velocity */
 	matrix::Vector3f _acc_sp; /**< desired acceleration */
 	matrix::Vector3f _thr_sp; /**< desired thrust */
+	float _roll_sp{};
+	float _pitch_sp{};
 	float _yaw_sp{}; /**< desired heading */
+	float _rollspeed_sp{};
+	float _pitchspeed_sp{};
 	float _yawspeed_sp{}; /** desired yaw-speed */
 };

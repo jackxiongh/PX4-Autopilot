@@ -258,6 +258,28 @@ void FlightModeManager::start_flight_task()
 
 	}
 
+	// stick attitude control for omniHex
+	if(_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_ACRO || task_failure){
+
+		should_disable_task = false;
+		FlightTaskError error = FlightTaskError::NoError;
+
+		error = switchTask(FlightTaskIndex::ManualAcceleration);
+
+		if (error != FlightTaskError::NoError) {
+			if (prev_failure_count == 0) {
+				PX4_WARN("ACRO activation failed with error: %s", errorToString(error));
+			}
+
+			task_failure = true;
+			_task_failure_count++;
+
+		} else {
+			check_failure(task_failure, vehicle_status_s::NAVIGATION_STATE_ACRO);
+			task_failure = false;
+		}
+	}
+
 	// manual position control
 	if (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_POSCTL || task_failure) {
 		should_disable_task = false;

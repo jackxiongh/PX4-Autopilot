@@ -81,6 +81,8 @@ protected:
 					(ParamInt<px4::params::MPC_ALT_MODE>) _param_mpc_alt_mode,
 					(ParamFloat<px4::params::MPC_HOLD_MAX_XY>) _param_mpc_hold_max_xy,
 					(ParamFloat<px4::params::MPC_Z_P>) _param_mpc_z_p, /**< position controller altitude propotional gain */
+					(ParamFloat<px4::params::MPC_MAN_R_MAX>) _param_mpc_man_r_max,
+					(ParamFloat<px4::params::MPC_MAN_P_MAX>) _param_mpc_man_p_max,
 					(ParamFloat<px4::params::MPC_MAN_Y_MAX>) _param_mpc_man_y_max, /**< scaling factor from stick to yaw rate */
 					(ParamFloat<px4::params::MPC_MAN_Y_TAU>) _param_mpc_man_y_tau,
 					(ParamFloat<px4::params::MPC_MAN_TILT_MAX>) _param_mpc_man_tilt_max, /**< maximum tilt allowed for manual flight */

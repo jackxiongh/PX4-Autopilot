@@ -247,7 +247,12 @@ MulticopterAttitudeControl::Run()
 		if (_vehicle_attitude_setpoint_sub.updated()) {
 			vehicle_attitude_setpoint_s vehicle_attitude_setpoint;
 			_vehicle_attitude_setpoint_sub.update(&vehicle_attitude_setpoint);
-			_attitude_control.setAttitudeSetpoint(Quatf(vehicle_attitude_setpoint.q_d), vehicle_attitude_setpoint.yaw_sp_move_rate);
+			_attitude_control.setAttitudeSetpoint(
+				Quatf(vehicle_attitude_setpoint.q_d),
+				vehicle_attitude_setpoint.roll_sp_move_rate,
+				vehicle_attitude_setpoint.pitch_sp_move_rate,
+				vehicle_attitude_setpoint.yaw_sp_move_rate
+			);
 			_thrust_setpoint_body = Vector3f(vehicle_attitude_setpoint.thrust_body);
 		}
 
@@ -284,6 +289,10 @@ MulticopterAttitudeControl::Run()
 				_vehicle_type_rotary_wing = (vehicle_status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING);
 				_vtol = vehicle_status.is_vtol;
 				_vtol_in_transition_mode = vehicle_status.in_transition_mode;
+				if(vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_ACRO)
+					_in_acro_mode = true;
+				else
+					_in_acro_mode = false;
 			}
 		}
 

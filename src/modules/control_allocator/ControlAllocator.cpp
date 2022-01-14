@@ -160,6 +160,10 @@ ControlAllocator::update_allocation_method()
 			tmp = new ControlAllocationSequentialDesaturation();
 			break;
 
+		case AllocationMethod::OMNI_HEX:
+			tmp = new ControlAllocationOmniHex();
+			break;
+
 		default:
 			PX4_ERR("Unknown allocation method");
 			break;
@@ -207,6 +211,10 @@ ControlAllocator::update_effectiveness_source()
 
 		case EffectivenessSource::TILTROTOR_VTOL:
 			tmp = new ActuatorEffectivenessTiltrotorVTOL();
+			break;
+
+		case EffectivenessSource::OMNI_HEX:
+			tmp = new ActuatorEffectivenessOmniHex();
 			break;
 
 		default:
@@ -498,6 +506,10 @@ int ControlAllocator::print_status()
 	case AllocationMethod::SEQUENTIAL_DESATURATION:
 		PX4_INFO("Method: Sequential desaturation");
 		break;
+
+	case AllocationMethod::OMNI_HEX:
+		PX4_INFO("Method: omni hex exclusive");
+		break;
 	}
 
 	// Print current airframe
@@ -516,6 +528,10 @@ int ControlAllocator::print_status()
 
 	case EffectivenessSource::TILTROTOR_VTOL:
 		PX4_INFO("EffectivenessSource: Tiltrotor VTOL");
+		break;
+
+	case EffectivenessSource::OMNI_HEX:
+		PX4_INFO("EffectivenessSource: OMNI_HEX");
 		break;
 	}
 
