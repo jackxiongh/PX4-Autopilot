@@ -140,6 +140,8 @@ private:
 	matrix::Vector3f _v; /**< NED velocity */
 	matrix::Dcmf _R;
 
+	float _vehicle_mass{};
+
 	float _hover_thrust{0.5f};			/**< Normalized hover thrust **/
 
 	bool _gear_state_initialized{false};		/**< true if the gear state has been initialized */

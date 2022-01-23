@@ -104,6 +104,7 @@ AngularVelocityController::parameters_updated()
 	_centre_of_mass(0) = _param_vm_com_x.get();
 	_centre_of_mass(1) = _param_vm_com_y.get();
 	_centre_of_mass(2) = _param_vm_com_z.get();
+	_vehicle_mass = _param_vm_mass.get();
 }
 
 void
@@ -178,7 +179,7 @@ AngularVelocityController::Run()
 			_angular_velocity_sp(2) = vehicle_rates_setpoint.yaw;
 			_thrust_sp = Vector3f(vehicle_rates_setpoint.thrust_body);
 
-			// TODO: Newton-Euler Equation
+			// Newton-Euler Equation Dynamics
 			vehicle_local_position_s vehicle_local_position;
 			vehicle_attitude_s vehicle_attitude;
 
@@ -187,12 +188,8 @@ AngularVelocityController::Run()
 			if(_vehicle_attitude_sub.update(&vehicle_attitude))
 				_R = Dcmf{Quatf(vehicle_attitude.q)};
 
-			//(angular_velocity.cross(_R.T() * _v)).print();
-
-			//_thrust_sp += angular_velocity.cross(_R.T() * _v);
-
-			// Scale _thrust_sp in Newton, assuming _hover_thrust is equivalent to 1G
-			_thrust_sp *= (_param_vm_mass.get() * CONSTANTS_ONE_G / _hover_thrust);
+			// Scale _thrust_sp in Newton, assuming _hover_thrust is equivalent to 1G, and add feedforward term
+			_thrust_sp = _thrust_sp * (_vehicle_mass * CONSTANTS_ONE_G / _hover_thrust) + _vehicle_mass * angular_velocity.cross(_R.T() * _v);
 		}
 
 		// run the controller
