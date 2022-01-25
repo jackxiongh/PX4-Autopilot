@@ -261,6 +261,7 @@ rtps:
     id: 119
   - msg: vehicle_imu
     id: 120
+    send: true
   - msg: vehicle_imu_status
     id: 121
   - msg: vehicle_angular_acceleration
@@ -410,6 +411,7 @@ rtps:
   - msg: estimator_visual_odometry_aligned
     id: 199
     alias: vehicle_odometry
+    send: true
   - msg: estimator_innovation_variances
     id: 200
     alias: estimator_innovations

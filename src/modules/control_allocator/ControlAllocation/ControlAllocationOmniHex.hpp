@@ -87,13 +87,13 @@ private:
     uORB::Publication<arm_rotation_s> _arm_rotation_pub{ORB_ID(arm_rotation)};
     uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
 
-    matrix::Vector<float, NUM_ACTUATORS> _allocation_raw;
-    matrix::Vector<float, NUM_ACTUATORS> _rotor_sp;
-	matrix::Vector<float, 6> _servo_sp;
-    matrix::Vector<float, 6> _last_servo_sp;
-    matrix::Vector<float, 6> _servo_delta;
-    matrix::Vector<float, NUM_ACTUATORS> _allocation_sp;
-    matrix::Vector<float, 3> _force_sp;
+    matrix::Vector<float, NUM_ACTUATORS> _allocation_raw{};
+    matrix::Vector<float, NUM_ACTUATORS> _rotor_sp{};
+	matrix::Vector<float, 6> _servo_sp{};
+    matrix::Vector<float, 6> _last_servo_sp{};
+    matrix::Vector<float, 6> _servo_delta{};
+    matrix::Vector<float, NUM_ACTUATORS> _allocation_sp{};
+    matrix::Vector<float, 3> _force_sp{};
 
     float _servo_delta_lim = 0.05f;
     bool _limit_reached = false;
