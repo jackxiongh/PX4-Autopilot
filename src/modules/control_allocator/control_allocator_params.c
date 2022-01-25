@@ -46,10 +46,11 @@
  * This is used to retrieve pre-computed control effectiveness matrix
  *
  * @min 0
- * @max 2
+ * @max 3
  * @value 0 Multirotor
  * @value 1 Standard VTOL (WIP)
  * @value 2 Tiltrotor VTOL (WIP)
+ * @value 3 omniHex
  * @group Control Allocation
  */
 PARAM_DEFINE_INT32(CA_AIRFRAME, 0);
@@ -59,8 +60,9 @@ PARAM_DEFINE_INT32(CA_AIRFRAME, 0);
  *
  * @value 0 Pseudo-inverse with output clipping (default)
  * @value 1 Pseudo-inverse with sequential desaturation technique
+ * @value 2 Pseudo-inverse for omniHex
  * @min 0
- * @max 1
+ * @max 2
  * @group Control Allocation
  */
 PARAM_DEFINE_INT32(CA_METHOD, 0);
