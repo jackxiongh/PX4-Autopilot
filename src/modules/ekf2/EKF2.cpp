@@ -535,6 +535,11 @@ void EKF2::PublishAttitude(const hrt_abstime &timestamp)
 		const Quatf q{_ekf.calculate_quaternion()};
 		q.copyTo(att.q);
 
+		const Eulerf RPY{q};
+		att.roll = RPY.phi();
+		att.pitch = RPY.theta();
+		att.yaw = RPY.psi();
+
 		_ekf.get_quat_reset(&att.delta_q_reset[0], &att.quat_reset_counter);
 		att.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
 		_attitude_pub.publish(att);
