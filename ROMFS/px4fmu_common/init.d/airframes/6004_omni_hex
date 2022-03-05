@@ -115,6 +115,10 @@ param set-default CA_ACT8_MIN 0.0
 param set-default CA_ACT9_MIN 0.0
 param set-default CA_ACT10_MIN 0.0
 param set-default CA_ACT11_MIN 0.0
+param set-default CA_ACT12_MIN 0.0
+param set-default CA_ACT13_MIN 0.0
+param set-default CA_ACT14_MIN 0.0
+param set-default CA_ACT15_MIN 0.0
 
 param set-default CA_ACT0_MAX 1.0
 param set-default CA_ACT1_MAX 1.0
@@ -128,6 +132,10 @@ param set-default CA_ACT8_MAX 1.0
 param set-default CA_ACT9_MAX 1.0
 param set-default CA_ACT10_MAX 1.0
 param set-default CA_ACT11_MAX 1.0
+param set-default CA_ACT12_MAX 1.0
+param set-default CA_ACT13_MAX 1.0
+param set-default CA_ACT14_MAX 1.0
+param set-default CA_ACT15_MAX 1.0
 
 param set-default CA_OH_AL 0.340        # allocation matrix param
 param set-default CA_OH_CT 19.125
@@ -148,6 +156,8 @@ set MAV_TYPE 13
 set MIXER direct
 set PWM_OUT 123456
 
+set MIXER_AUX direct_aux
+set PWM_AUX_OUT 123456
 #####################################################################
 #                           other settings                          #
 #####################################################################

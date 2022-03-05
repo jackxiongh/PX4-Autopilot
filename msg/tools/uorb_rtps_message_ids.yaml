@@ -3,8 +3,10 @@ rtps:
     id: 0
   - msg: actuator_controls
     id: 1
+    send: true
   - msg: actuator_outputs
     id: 3
+    send: true
   - msg: adc_report
     id: 4
   - msg: airspeed
@@ -347,12 +349,15 @@ rtps:
     id: 160
     send: true
   ########## multi topics: begin ##########
+  # if send or receive true, make sure the corresponding single topic is also set
   - msg: actuator_controls_0
     id: 180
     alias: actuator_controls
+    send: true
   - msg: actuator_controls_1
     id: 181
     alias: actuator_controls
+    send: true
   - msg: actuator_controls_2
     id: 182
     alias: actuator_controls
@@ -451,6 +456,7 @@ rtps:
   - msg: actuator_controls_5
     id: 212
     alias: actuator_controls
+    send: true
   - msg: estimator_wind
     id: 213
     alias: wind
