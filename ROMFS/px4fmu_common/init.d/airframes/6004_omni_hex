@@ -80,22 +80,22 @@ param set-default MC_YAWRATE_MAX 50
 #####################################################################
 #                  angular velocity controller settings             #
 #####################################################################
-param set-default AVC_X_P 8             # 18
+param set-default AVC_X_P 18             # 18
 param set-default AVC_X_I 0.3           # 0.2
 param set-default AVC_X_D 0.01          # 0.36
-param set-default AVC_Y_P 8             # 18
+param set-default AVC_Y_P 18             # 18
 param set-default AVC_Y_I 0.3           # 0.2
 param set-default AVC_Y_D 0.01          # 0.36
-param set-default AVC_Z_P 4             # 7
+param set-default AVC_Z_P 8             # 7
 param set-default AVC_Z_I 0.3           # 0.1
 param set-default AVC_Z_D 0.01          # 0
 
 #####################################################################
 #                             acro mode                             #
 #####################################################################
-param set-default MPC_MAN_R_MAX 40
-param set-default MPC_MAN_P_MAX 40
-param set-default MPC_MAN_Y_MAX 40
+param set-default MPC_MAN_R_MAX 20
+param set-default MPC_MAN_P_MAX 20
+param set-default MPC_MAN_Y_MAX 20
 
 #####################################################################
 #                     control allocator settings                    #

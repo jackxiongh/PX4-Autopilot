@@ -203,11 +203,19 @@ void ControlAllocationOmniHex::allocate()
 	limit_servo_delta();
 
 	// Publish servo setpoint (now goes to _actuator_sp too)
-	if (_force_sp.norm() < _force_norm_thresh)
+	vehicle_status_s status;
+	_vehicle_status_sub.copy(&status);
+
+	if (_force_sp.norm() < _force_norm_thresh || status.arming_state != vehicle_status_s::ARMING_STATE_ARMED)
 	{
-		_servo_delta.setZero();
+		_servo_delta.setZero();	// otherwise the condition number is too big
 	}
 	_servo_sp = _last_servo_sp + _servo_delta;
+	if (status.arming_state != vehicle_status_s::ARMING_STATE_ARMED)
+	{
+		_servo_sp.setZero();
+	}
+	
 	_force_sp(0) = _control_sp(3);
 	_force_sp(1) = _control_sp(4);
 	_force_sp(2) = _control_sp(5);
