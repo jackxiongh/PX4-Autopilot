@@ -387,8 +387,13 @@ bool MixingOutput::update()
 				/* Set all controls to 0 */
 				memset(&_controls[i], 0, sizeof(_controls[i]));
 
-				/* except thrust to maximum. */
-				_controls[i].control[actuator_controls_s::INDEX_THROTTLE] = 1.0f;
+				/* all thrust to maximum, modified for omnihex */
+				_controls[i].control[0] = 1.0f;
+				_controls[i].control[1] = 1.0f;
+				_controls[i].control[2] = 1.0f;
+				_controls[i].control[4] = 1.0f;
+				_controls[i].control[5] = 1.0f;
+				_controls[i].control[6] = 1.0f;
 
 				/* Switch off the output limit ramp for the calibration. */
 				_output_limit.state = OUTPUT_LIMIT_STATE_ON;

@@ -51,7 +51,10 @@ fi
 #
 # Start Multicopter Rate Controller.
 #
-mc_rate_control start
+if [ $MIXER != omnihex ]
+then
+	mc_rate_control start
+fi
 
 #
 # Start Multicopter Attitude Controller.

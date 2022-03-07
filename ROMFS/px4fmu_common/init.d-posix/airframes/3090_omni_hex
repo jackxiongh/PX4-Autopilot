@@ -131,11 +131,11 @@ param set-default CA_OH_FORCE_THR 10
 param set-default CA_OH_DAMP_THR 0.3    # kinematic singularity
 param set-default CA_OH_ALGN_THR 0.1
 
-# mixer settings (verified in sitl, not in real flight)
+# mixer settings
 set MAV_TYPE 13
-set MIXER direct
+set MIXER omnihex
 set PWM_OUT 123456
-set MIXER_AUX direct_aux
+set MIXER_AUX omnihex_aux
 set PWM_AUX_OUT 123456
 #########################################################################
 ###################### BELOW SHOULD BE USED WITH ########################

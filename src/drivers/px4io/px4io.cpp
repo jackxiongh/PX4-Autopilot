@@ -1437,8 +1437,13 @@ PX4IO::io_set_control_state(unsigned group)
 		/* modify controls to get max pwm (full thrust) on every esc */
 		memset(&controls, 0, sizeof(controls));
 
-		/* set maximum thrust */
-		controls.control[3] = 1.0f;
+		/* set maximum thrust, modified for omnihex */
+		controls.control[0] = 1.0f;
+		controls.control[1] = 1.0f;
+		controls.control[2] = 1.0f;
+		controls.control[4] = 1.0f;
+		controls.control[5] = 1.0f;
+		controls.control[6] = 1.0f;
 	}
 
 	uint16_t regs[sizeof(controls.control) / sizeof(controls.control[0])] = {};
