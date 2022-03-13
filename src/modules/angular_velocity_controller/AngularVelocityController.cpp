@@ -186,10 +186,10 @@ AngularVelocityController::Run()
 			if(_vehicle_local_position_sub.update(&vehicle_local_position))
 				_v = Vector3f({vehicle_local_position.vx, vehicle_local_position.vy, vehicle_local_position.vz});
 			if(_vehicle_attitude_sub.update(&vehicle_attitude))
-				_R = Dcmf{Quatf(vehicle_attitude.q)};
+				_q = Quatf(vehicle_attitude.q);
 
 			// Scale _thrust_sp in Newton, assuming _hover_thrust is equivalent to 1G, and add feedforward term
-			_thrust_sp = _thrust_sp * (_vehicle_mass * CONSTANTS_ONE_G / _hover_thrust) + _vehicle_mass * angular_velocity.cross(_R.T() * _v);
+			_thrust_sp = _thrust_sp * (_vehicle_mass * CONSTANTS_ONE_G / _hover_thrust) + _vehicle_mass * angular_velocity.cross(_q.conjugate(_v));
 		}
 
 		// run the controller

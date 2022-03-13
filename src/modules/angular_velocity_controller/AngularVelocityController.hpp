@@ -138,7 +138,7 @@ private:
 	matrix::Vector3f _thrust_sp;			/**< thrust setpoint */
 	matrix::Vector3f _centre_of_mass;
 	matrix::Vector3f _v; /**< NED velocity */
-	matrix::Dcmf _R;
+	matrix::Quatf _q;
 
 	float _vehicle_mass{};
 

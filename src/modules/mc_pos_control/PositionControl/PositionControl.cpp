@@ -242,8 +242,8 @@ void PositionControl::getLocalPositionSetpoint(vehicle_local_position_setpoint_s
 void PositionControl::getAttitudeSetpoint(vehicle_attitude_setpoint_s &attitude_setpoint) const
 {
 	// thrust conversion
-	const Dcmf R{Eulerf{_roll, _pitch, _yaw}};
-	Vector3f thrust_body_sp = R.T() * _thr_sp;
+	const Quatf q{Eulerf{_roll, _pitch, _yaw}};
+	Vector3f thrust_body_sp = q.conjugate_inversed(_thr_sp);
 	thrust_body_sp.copyTo(attitude_setpoint.thrust_body);
 
 	// attitude passthrough
