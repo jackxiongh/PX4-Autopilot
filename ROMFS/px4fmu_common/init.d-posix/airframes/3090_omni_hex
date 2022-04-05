@@ -63,13 +63,13 @@ param set-default MC_PITCHRATE_MAX 60
 param set-default MC_YAWRATE_MAX 60
 
 # angular velocity controller settings
-param set-default AVC_X_P 9             # 18
+param set-default AVC_X_P 18             # 18
 param set-default AVC_X_I 0.3           # 0.2
 param set-default AVC_X_D 0.01          # 0.36
-param set-default AVC_Y_P 9             # 18
+param set-default AVC_Y_P 18             # 18
 param set-default AVC_Y_I 0.3           # 0.2
 param set-default AVC_Y_D 0.01          # 0.36
-param set-default AVC_Z_P 4.5             # 7
+param set-default AVC_Z_P 8             # 7
 param set-default AVC_Z_I 0.3           # 0.1
 param set-default AVC_Z_D 0.01          # 0
 
