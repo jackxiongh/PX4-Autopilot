@@ -142,7 +142,6 @@ def get_actuator_output(yaml_config, output_functions, timer_config_file, verbos
         }
     if 'show_subgroups_if' in actuator_output_yaml:
         actuator_output['show-subgroups-if'] = actuator_output_yaml['show_subgroups_if']
-    add_reverse_range_param = actuator_output_yaml.get('add_reverse_range_param', False)
 
     # config parameters
     def get_config_params(param_list):
@@ -257,14 +256,13 @@ def get_actuator_output(yaml_config, output_functions, timer_config_file, verbos
                 per_channel_params.append(param)
 
 
-        if add_reverse_range_param:
-            param = {
-                    'label': 'Rev Range\n(for Servos)',
-                    'name': param_prefix+'_REV',
-                    'index-offset': -1,
-                    'show-as': 'bitset',
-                }
-            per_channel_params.append(param)
+        param = {
+                'label': 'Rev Range\n(for Servos)',
+                'name': param_prefix+'_REV',
+                'index-offset': -1,
+                'show-as': 'bitset',
+            }
+        per_channel_params.append(param)
 
         # TODO: support non-standard per-channel parameters
 
@@ -332,9 +330,11 @@ def get_mixers(yaml_config, output_functions, verbose):
         option = select_param + '==' + str(type_index)
         mixer_config = {
                 'option': option,
+                'help-url': 'https://docs.px4.io/master/en/config/actuators.html',
             }
-        if 'type' in current_type:
-            mixer_config['type'] = current_type['type']
+        for optional in ['type', 'title']:
+            if optional in current_type:
+                mixer_config[optional] = current_type[optional]
         actuators = []
         for actuator_conf in current_type['actuators']:
             actuator = {

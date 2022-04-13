@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019-2021 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2019-2022 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,6 +46,8 @@ VehicleAngularVelocity::VehicleAngularVelocity() :
 	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::rate_ctrl)
 {
+	_vehicle_angular_acceleration_pub.advertise();
+	_vehicle_angular_velocity_pub.advertise();
 }
 
 VehicleAngularVelocity::~VehicleAngularVelocity()
@@ -57,12 +59,11 @@ VehicleAngularVelocity::~VehicleAngularVelocity()
 	perf_free(_selection_changed_perf);
 
 #if !defined(CONSTRAINED_FLASH)
+	delete[] _dynamic_notch_filter_esc_rpm;
 	perf_free(_dynamic_notch_filter_esc_rpm_disable_perf);
-	perf_free(_dynamic_notch_filter_esc_rpm_reset_perf);
 	perf_free(_dynamic_notch_filter_esc_rpm_update_perf);
 
 	perf_free(_dynamic_notch_filter_fft_disable_perf);
-	perf_free(_dynamic_notch_filter_fft_reset_perf);
 	perf_free(_dynamic_notch_filter_fft_update_perf);
 #endif // CONSTRAINED_FLASH
 }
@@ -74,7 +75,7 @@ bool VehicleAngularVelocity::Start()
 
 	// sensor_selection needed to change the active sensor if the primary stops updating
 	if (!_sensor_selection_sub.registerCallback()) {
-		PX4_ERR("sensor_selection callback registration failed");
+		PX4_ERR("callback registration failed");
 		return false;
 	}
 
@@ -156,7 +157,7 @@ bool VehicleAngularVelocity::UpdateSampleRate()
 	return PX4_ISFINITE(_filter_sample_rate_hz) && (_filter_sample_rate_hz > 0);
 }
 
-void VehicleAngularVelocity::ResetFilters()
+void VehicleAngularVelocity::ResetFilters(const hrt_abstime &time_now_us)
 {
 	if ((_filter_sample_rate_hz > 0) && PX4_ISFINITE(_filter_sample_rate_hz)) {
 
@@ -168,10 +169,15 @@ void VehicleAngularVelocity::ResetFilters()
 			_lp_filter_velocity[axis].set_cutoff_frequency(_filter_sample_rate_hz, _param_imu_gyro_cutoff.get());
 			_lp_filter_velocity[axis].reset(angular_velocity_uncalibrated(axis));
 
-			// angular velocity notch
-			_notch_filter_velocity[axis].setParameters(_filter_sample_rate_hz, _param_imu_gyro_nf_freq.get(),
-					_param_imu_gyro_nf_bw.get());
-			_notch_filter_velocity[axis].reset(angular_velocity_uncalibrated(axis));
+			// angular velocity notch 0
+			_notch_filter0_velocity[axis].setParameters(_filter_sample_rate_hz, _param_imu_gyro_nf0_frq.get(),
+					_param_imu_gyro_nf0_bw.get());
+			_notch_filter0_velocity[axis].reset();
+
+			// angular velocity notch 1
+			_notch_filter1_velocity[axis].setParameters(_filter_sample_rate_hz, _param_imu_gyro_nf1_frq.get(),
+					_param_imu_gyro_nf1_bw.get());
+			_notch_filter1_velocity[axis].reset();
 
 			// angular acceleration low pass
 			if ((_param_imu_dgyro_cutoff.get() > 0.f)
@@ -185,8 +191,8 @@ void VehicleAngularVelocity::ResetFilters()
 		}
 
 		// force reset notch filters on any scale change
-		UpdateDynamicNotchEscRpm(true);
-		UpdateDynamicNotchFFT(true);
+		UpdateDynamicNotchEscRpm(time_now_us, true);
+		UpdateDynamicNotchFFT(time_now_us, true);
 
 		_angular_velocity_raw_prev = angular_velocity_uncalibrated;
 
@@ -218,7 +224,7 @@ void VehicleAngularVelocity::SensorBiasUpdate(bool force)
 	}
 }
 
-bool VehicleAngularVelocity::SensorSelectionUpdate(bool force)
+bool VehicleAngularVelocity::SensorSelectionUpdate(const hrt_abstime &time_now_us, bool force)
 {
 	if (_sensor_selection_sub.updated() || (_selected_sensor_device_id == 0) || force) {
 		sensor_selection_s sensor_selection{};
@@ -231,19 +237,20 @@ bool VehicleAngularVelocity::SensorSelectionUpdate(bool force)
 		// use vehicle_imu_status to do basic sensor selection validation
 		for (uint8_t i = 0; i < MAX_SENSOR_COUNT; i++) {
 			uORB::SubscriptionData<vehicle_imu_status_s> imu_status{ORB_ID(vehicle_imu_status), i};
-			bool imu_status_gyro_valid = false;
 
-			if ((imu_status.get().gyro_device_id != 0) && (hrt_elapsed_time(&imu_status.get().timestamp) < 1_s)) {
-				imu_status_gyro_valid = true;
-			}
+			if (imu_status.advertised()
+			    && (imu_status.get().timestamp != 0) && (time_now_us < imu_status.get().timestamp + 1_s)
+			    && (imu_status.get().gyro_device_id != 0)) {
+				// vehicle_imu_status gyro valid
 
-			if ((device_id != 0) && (imu_status.get().gyro_device_id == device_id) && imu_status_gyro_valid) {
-				selected_device_id_valid = true;
-			}
+				if ((device_id != 0) && (imu_status.get().gyro_device_id == device_id)) {
+					selected_device_id_valid = true;
+				}
 
-			// record first valid IMU as a backup option
-			if ((device_id_first_valid_imu == 0) && imu_status_gyro_valid) {
-				device_id_first_valid_imu = imu_status.get().gyro_device_id;
+				// record first valid IMU as a backup option
+				if (device_id_first_valid_imu == 0) {
+					device_id_first_valid_imu = imu_status.get().gyro_device_id;
+				}
 			}
 		}
 
@@ -260,21 +267,24 @@ bool VehicleAngularVelocity::SensorSelectionUpdate(bool force)
 			for (uint8_t i = 0; i < MAX_SENSOR_COUNT; i++) {
 				uORB::SubscriptionData<sensor_gyro_fifo_s> sensor_gyro_fifo_sub{ORB_ID(sensor_gyro_fifo), i};
 
-				if (sensor_gyro_fifo_sub.get().device_id != 0) {
+				if (sensor_gyro_fifo_sub.advertised()
+				    && (sensor_gyro_fifo_sub.get().timestamp != 0)
+				    && (sensor_gyro_fifo_sub.get().device_id != 0)
+				    && (time_now_us < sensor_gyro_fifo_sub.get().timestamp + 1_s)) {
+
 					// if no gyro was selected use the first valid sensor_gyro_fifo
-					if (!device_id_valid && (hrt_elapsed_time(&sensor_gyro_fifo_sub.get().timestamp) < 1_s)) {
+					if (!device_id_valid) {
 						device_id = sensor_gyro_fifo_sub.get().device_id;
+						PX4_WARN("no gyro selected, using sensor_gyro_fifo:%" PRIu8 " %" PRIu32, i, sensor_gyro_fifo_sub.get().device_id);
 					}
 
-					if ((sensor_gyro_fifo_sub.get().device_id == device_id)
-					    && _sensor_fifo_sub.ChangeInstance(i) && _sensor_fifo_sub.registerCallback()) {
+					if (sensor_gyro_fifo_sub.get().device_id == device_id) {
+						if (_sensor_fifo_sub.ChangeInstance(i) && _sensor_fifo_sub.registerCallback()) {
+							// make sure non-FIFO sub is unregistered
+							_sensor_sub.unregisterCallback();
 
-						// make sure non-FIFO sub is unregistered
-						_sensor_sub.unregisterCallback();
+							_calibration.set_device_id(sensor_gyro_fifo_sub.get().device_id);
 
-						_calibration.set_device_id(sensor_gyro_fifo_sub.get().device_id);
-
-						if (_calibration.enabled()) {
 							_selected_sensor_device_id = sensor_gyro_fifo_sub.get().device_id;
 
 							_timestamp_sample_last = 0;
@@ -289,7 +299,8 @@ bool VehicleAngularVelocity::SensorSelectionUpdate(bool force)
 							return true;
 
 						} else {
-							_selected_sensor_device_id = 0;
+							PX4_ERR("unable to register callback for sensor_gyro_fifo:%" PRIu8 " %" PRIu32,
+								i, sensor_gyro_fifo_sub.get().device_id);
 						}
 					}
 				}
@@ -298,20 +309,24 @@ bool VehicleAngularVelocity::SensorSelectionUpdate(bool force)
 			for (uint8_t i = 0; i < MAX_SENSOR_COUNT; i++) {
 				uORB::SubscriptionData<sensor_gyro_s> sensor_gyro_sub{ORB_ID(sensor_gyro), i};
 
-				if (sensor_gyro_sub.get().device_id != 0) {
+				if (sensor_gyro_sub.advertised()
+				    && (sensor_gyro_sub.get().timestamp != 0)
+				    && (sensor_gyro_sub.get().device_id != 0)
+				    && (time_now_us < sensor_gyro_sub.get().timestamp + 1_s)) {
+
 					// if no gyro was selected use the first valid sensor_gyro
-					if (!device_id_valid && (hrt_elapsed_time(&sensor_gyro_sub.get().timestamp) < 1_s)) {
+					if (!device_id_valid) {
 						device_id = sensor_gyro_sub.get().device_id;
+						PX4_WARN("no gyro selected, using sensor_gyro:%" PRIu8 " %" PRIu32, i, sensor_gyro_sub.get().device_id);
 					}
 
-					if ((sensor_gyro_sub.get().device_id == device_id)
-					    && _sensor_sub.ChangeInstance(i) && _sensor_sub.registerCallback()) {
-						// make sure FIFO sub is unregistered
-						_sensor_fifo_sub.unregisterCallback();
+					if (sensor_gyro_sub.get().device_id == device_id) {
+						if (_sensor_sub.ChangeInstance(i) && _sensor_sub.registerCallback()) {
+							// make sure FIFO sub is unregistered
+							_sensor_fifo_sub.unregisterCallback();
 
-						_calibration.set_device_id(sensor_gyro_sub.get().device_id);
+							_calibration.set_device_id(sensor_gyro_sub.get().device_id);
 
-						if (_calibration.enabled()) {
 							_selected_sensor_device_id = sensor_gyro_sub.get().device_id;
 
 							_timestamp_sample_last = 0;
@@ -326,7 +341,8 @@ bool VehicleAngularVelocity::SensorSelectionUpdate(bool force)
 							return true;
 
 						} else {
-							_selected_sensor_device_id = 0;
+							PX4_ERR("unable to register callback for sensor_gyro:%" PRIu8 " %" PRIu32,
+								i, sensor_gyro_sub.get().device_id);
 						}
 					}
 				}
@@ -351,11 +367,13 @@ void VehicleAngularVelocity::ParametersUpdate(bool force)
 		parameter_update_s param_update;
 		_parameter_update_sub.copy(&param_update);
 
-		const bool nf_enabled_prev = (_param_imu_gyro_nf_freq.get() > 0.f) && (_param_imu_gyro_nf_bw.get() > 0.f);
+		const bool nf0_enabled_prev = (_param_imu_gyro_nf0_frq.get() > 0.f) && (_param_imu_gyro_nf0_bw.get() > 0.f);
+		const bool nf1_enabled_prev = (_param_imu_gyro_nf1_frq.get() > 0.f) && (_param_imu_gyro_nf1_bw.get() > 0.f);
 
 		updateParams();
 
-		const bool nf_enabled = (_param_imu_gyro_nf_freq.get() > 0.f) && (_param_imu_gyro_nf_bw.get() > 0.f);
+		const bool nf0_enabled = (_param_imu_gyro_nf0_frq.get() > 0.f) && (_param_imu_gyro_nf0_bw.get() > 0.f);
+		const bool nf1_enabled = (_param_imu_gyro_nf1_frq.get() > 0.f) && (_param_imu_gyro_nf1_bw.get() > 0.f);
 
 		_calibration.ParametersUpdate();
 
@@ -367,12 +385,23 @@ void VehicleAngularVelocity::ParametersUpdate(bool force)
 			}
 		}
 
-		// gyro notch filter frequency or bandwidth changed
-		for (auto &nf : _notch_filter_velocity) {
-			const bool nf_freq_changed = (fabsf(nf.getNotchFreq() - _param_imu_gyro_nf_freq.get()) > 0.01f);
-			const bool nf_bw_changed   = (fabsf(nf.getBandwidth() - _param_imu_gyro_nf_bw.get()) > 0.01f);
+		// gyro notch filter 0 frequency or bandwidth changed
+		for (auto &nf : _notch_filter0_velocity) {
+			const bool nf_freq_changed = (fabsf(nf.getNotchFreq() - _param_imu_gyro_nf0_frq.get()) > 0.01f);
+			const bool nf_bw_changed   = (fabsf(nf.getBandwidth() - _param_imu_gyro_nf0_bw.get()) > 0.01f);
 
-			if ((nf_enabled_prev != nf_enabled) || (nf_enabled && (nf_freq_changed || nf_bw_changed))) {
+			if ((nf0_enabled_prev != nf0_enabled) || (nf0_enabled && (nf_freq_changed || nf_bw_changed))) {
+				_reset_filters = true;
+				break;
+			}
+		}
+
+		// gyro notch filter 1 frequency or bandwidth changed
+		for (auto &nf : _notch_filter1_velocity) {
+			const bool nf_freq_changed = (fabsf(nf.getNotchFreq() - _param_imu_gyro_nf1_frq.get()) > 0.01f);
+			const bool nf_bw_changed   = (fabsf(nf.getBandwidth() - _param_imu_gyro_nf1_bw.get()) > 0.01f);
+
+			if ((nf1_enabled_prev != nf1_enabled) || (nf1_enabled && (nf_freq_changed || nf_bw_changed))) {
 				_reset_filters = true;
 				break;
 			}
@@ -389,12 +418,41 @@ void VehicleAngularVelocity::ParametersUpdate(bool force)
 #if !defined(CONSTRAINED_FLASH)
 
 		if (_param_imu_gyro_dnf_en.get() & DynamicNotch::EscRpm) {
-			if (_dynamic_notch_filter_esc_rpm_disable_perf == nullptr) {
-				_dynamic_notch_filter_esc_rpm_disable_perf = perf_alloc(PC_COUNT,
-						MODULE_NAME": gyro dynamic notch filter ESC RPM disable");
-				_dynamic_notch_filter_esc_rpm_reset_perf = perf_alloc(PC_COUNT, MODULE_NAME": gyro dynamic notch filter ESC RPM reset");
-				_dynamic_notch_filter_esc_rpm_update_perf = perf_alloc(PC_COUNT,
-						MODULE_NAME": gyro dynamic notch filter ESC RPM update");
+
+			const int32_t esc_rpm_harmonics = math::constrain(_param_imu_gyro_dnf_hmc.get(), (int32_t)1, (int32_t)10);
+
+			if (_dynamic_notch_filter_esc_rpm && (esc_rpm_harmonics != _esc_rpm_harmonics)) {
+				delete[] _dynamic_notch_filter_esc_rpm;
+				_dynamic_notch_filter_esc_rpm = nullptr;
+				_esc_rpm_harmonics = 0;
+			}
+
+			if (_dynamic_notch_filter_esc_rpm == nullptr) {
+
+				_dynamic_notch_filter_esc_rpm = new NotchFilterHarmonic[esc_rpm_harmonics];
+
+				if (_dynamic_notch_filter_esc_rpm) {
+					_esc_rpm_harmonics = esc_rpm_harmonics;
+
+					if (_dynamic_notch_filter_esc_rpm_disable_perf == nullptr) {
+						_dynamic_notch_filter_esc_rpm_disable_perf = perf_alloc(PC_COUNT,
+								MODULE_NAME": gyro dynamic notch filter ESC RPM disable");
+					}
+
+					if (_dynamic_notch_filter_esc_rpm_update_perf == nullptr) {
+						_dynamic_notch_filter_esc_rpm_update_perf = perf_alloc(PC_COUNT,
+								MODULE_NAME": gyro dynamic notch filter ESC RPM update");
+					}
+
+				} else {
+					_esc_rpm_harmonics = 0;
+
+					perf_free(_dynamic_notch_filter_esc_rpm_disable_perf);
+					perf_free(_dynamic_notch_filter_esc_rpm_update_perf);
+
+					_dynamic_notch_filter_esc_rpm_disable_perf = nullptr;
+					_dynamic_notch_filter_esc_rpm_update_perf = nullptr;
+				}
 			}
 
 		} else {
@@ -404,7 +462,6 @@ void VehicleAngularVelocity::ParametersUpdate(bool force)
 		if (_param_imu_gyro_dnf_en.get() & DynamicNotch::FFT) {
 			if (_dynamic_notch_filter_fft_disable_perf == nullptr) {
 				_dynamic_notch_filter_fft_disable_perf = perf_alloc(PC_COUNT, MODULE_NAME": gyro dynamic notch filter FFT disable");
-				_dynamic_notch_filter_fft_reset_perf = perf_alloc(PC_COUNT, MODULE_NAME": gyro dynamic notch filter FFT reset");
 				_dynamic_notch_filter_fft_update_perf = perf_alloc(PC_COUNT, MODULE_NAME": gyro dynamic notch filter FFT update");
 			}
 
@@ -456,19 +513,16 @@ void VehicleAngularVelocity::DisableDynamicNotchEscRpm()
 {
 #if !defined(CONSTRAINED_FLASH)
 
-	if (_dynamic_notch_esc_rpm_available) {
-		for (int axis = 0; axis < 3; axis++) {
-			for (int esc = 0; esc < MAX_NUM_ESC_RPM; esc++) {
-				for (int harmonic = 0; harmonic < MAX_NUM_ESC_RPM_HARMONICS; harmonic++) {
-					_dynamic_notch_filter_esc_rpm[axis][esc][harmonic].setParameters(0, 0, 0);
+	if (_dynamic_notch_filter_esc_rpm) {
+		for (int harmonic = 0; harmonic < _esc_rpm_harmonics; harmonic++) {
+			for (int axis = 0; axis < 3; axis++) {
+				for (int esc = 0; esc < MAX_NUM_ESCS; esc++) {
+					_dynamic_notch_filter_esc_rpm[harmonic][axis][esc].disable();
+					_esc_available.set(esc, false);
+					perf_count(_dynamic_notch_filter_esc_rpm_disable_perf);
 				}
-
-				_esc_available.set(esc, false);
-				perf_count(_dynamic_notch_filter_esc_rpm_disable_perf);
 			}
 		}
-
-		_dynamic_notch_esc_rpm_available = false;
 	}
 
 #endif // !CONSTRAINED_FLASH
@@ -481,112 +535,102 @@ void VehicleAngularVelocity::DisableDynamicNotchFFT()
 	if (_dynamic_notch_fft_available) {
 		for (int axis = 0; axis < 3; axis++) {
 			for (int peak = 0; peak < MAX_NUM_FFT_PEAKS; peak++) {
-				_dynamic_notch_filter_fft[axis][peak].setParameters(0, 0, 0);
+				_dynamic_notch_filter_fft[axis][peak].disable();
+				perf_count(_dynamic_notch_filter_fft_disable_perf);
 			}
 		}
 
 		_dynamic_notch_fft_available = false;
-		perf_count(_dynamic_notch_filter_fft_disable_perf);
 	}
 
 #endif // !CONSTRAINED_FLASH
 }
 
-void VehicleAngularVelocity::UpdateDynamicNotchEscRpm(bool force)
+void VehicleAngularVelocity::UpdateDynamicNotchEscRpm(const hrt_abstime &time_now_us, bool force)
 {
 #if !defined(CONSTRAINED_FLASH)
-	const bool enabled = _param_imu_gyro_dnf_en.get() & DynamicNotch::EscRpm;
+	const bool enabled = _dynamic_notch_filter_esc_rpm && (_param_imu_gyro_dnf_en.get() & DynamicNotch::EscRpm);
 
 	if (enabled && (_esc_status_sub.updated() || force)) {
 
-		if (!_dynamic_notch_esc_rpm_available) {
-			// force update filters if previously disabled
-			force = true;
-		}
-
 		esc_status_s esc_status;
 
-		if (_esc_status_sub.copy(&esc_status) && (hrt_elapsed_time(&esc_status.timestamp) < DYNAMIC_NOTCH_FITLER_TIMEOUT)) {
+		if (_esc_status_sub.copy(&esc_status) && (time_now_us < esc_status.timestamp + DYNAMIC_NOTCH_FITLER_TIMEOUT)) {
 
-			static constexpr float ESC_RPM_MIN = 10.f * 60.f; // TODO: configurable
-			const float ESC_RPM_MAX = roundf(_filter_sample_rate_hz / 3.f * 60.f); // upper bound safety (well below Nyquist)
+			static constexpr float FREQ_MIN = 10.f; // TODO: configurable
 
-			for (size_t esc = 0; esc < math::min(esc_status.esc_count, (uint8_t)MAX_NUM_ESC_RPM); esc++) {
+			for (size_t esc = 0; esc < math::min(esc_status.esc_count, (uint8_t)MAX_NUM_ESCS); esc++) {
 				const esc_report_s &esc_report = esc_status.esc[esc];
-				const float esc_rpm = abs(esc_report.esc_rpm);
 
 				// only update if ESC RPM range seems valid
-				if ((esc_report.esc_rpm != 0) && (esc_rpm > ESC_RPM_MIN) && (esc_rpm < ESC_RPM_MAX)
-				    && (hrt_elapsed_time(&esc_report.timestamp) < DYNAMIC_NOTCH_FITLER_TIMEOUT)) {
+				if ((esc_report.esc_rpm != 0) && (time_now_us < esc_report.timestamp + DYNAMIC_NOTCH_FITLER_TIMEOUT)) {
 
-					// for each ESC check determine if enabled/disabled from first notch (x axis, harmonic 0)
-					auto &nfx0 = _dynamic_notch_filter_esc_rpm[0][esc][0];
+					bool esc_enabled = false;
+					bool update = force || !_esc_available[esc]; // force parameter update or notch was previously disabled
 
-					bool reset = force || (nfx0.getNotchFreq() <= FLT_EPSILON); // notch was previously disabled
+					const float esc_hz = abs(esc_report.esc_rpm) / 60.f;
 
-					const float esc_hz = esc_rpm / 60.f;
-					const float notch_freq_diff = fabsf(nfx0.getNotchFreq() - esc_hz);
+					for (int harmonic = 0; harmonic < _esc_rpm_harmonics; harmonic++) {
+						const float frequency_hz = esc_hz * (harmonic + 1);
 
-					// update filter parameters if frequency changed or forced
-					if (reset || (notch_freq_diff > 0.1f)) {
+						// for each ESC harmonic determine if enabled/disabled from first notch (x axis)
+						auto &nfx = _dynamic_notch_filter_esc_rpm[harmonic][0][esc];
 
-						// force reset if the notch frequency jumps significantly
-						if (notch_freq_diff > _param_imu_gyro_dnf_bw.get()) {
-							reset = true;
-						}
+						if (frequency_hz > FREQ_MIN) {
+							// update filter parameters if frequency changed or forced
+							if (update || !nfx.initialized() || (fabsf(nfx.getNotchFreq() - frequency_hz) > 0.1f)) {
+								for (int axis = 0; axis < 3; axis++) {
+									auto &nf = _dynamic_notch_filter_esc_rpm[harmonic][axis][esc];
+									nf.setParameters(_filter_sample_rate_hz, frequency_hz, _param_imu_gyro_dnf_bw.get());
+									perf_count(_dynamic_notch_filter_esc_rpm_update_perf);
+								}
+							}
 
-						for (int harmonic = 0; harmonic < MAX_NUM_ESC_RPM_HARMONICS; harmonic++) {
-							const float frequency_hz = esc_hz * (harmonic + 1);
+							esc_enabled = true;
 
-							for (int axis = 0; axis < 3; axis++) {
-								_dynamic_notch_filter_esc_rpm[axis][esc][harmonic].setParameters(_filter_sample_rate_hz, frequency_hz,
-										_param_imu_gyro_dnf_bw.get());
+						} else {
+							// disable these notch filters (if they aren't already)
+							if (nfx.getNotchFreq() > 0.f) {
+								for (int axis = 0; axis < 3; axis++) {
+									auto &nf = _dynamic_notch_filter_esc_rpm[harmonic][axis][esc];
+									nf.disable();
+									perf_count(_dynamic_notch_filter_esc_rpm_disable_perf);
+								}
 							}
 						}
-
-						perf_count(_dynamic_notch_filter_esc_rpm_update_perf);
 					}
 
-					if (reset) {
-						const Vector3f reset_angular_velocity{GetResetAngularVelocity()};
+					if (esc_enabled) {
+						_esc_available.set(esc, true);
+						_last_esc_rpm_notch_update[esc] = esc_report.timestamp;
 
-						for (int axis = 0; axis < 3; axis++) {
-							for (int harmonic = 0; harmonic < MAX_NUM_ESC_RPM_HARMONICS; harmonic++) {
-								_dynamic_notch_filter_esc_rpm[axis][esc][harmonic].reset(reset_angular_velocity(axis));
-							}
-						}
-
-						perf_count(_dynamic_notch_filter_esc_rpm_reset_perf);
-					}
-
-					_dynamic_notch_esc_rpm_available = true;
-					_esc_available.set(esc, true);
-					_last_esc_rpm_notch_update[esc] = esc_report.timestamp;
-
-				} else if (_esc_available[esc]
-					   && (force || (hrt_elapsed_time(&_last_esc_rpm_notch_update[esc]) >= DYNAMIC_NOTCH_FITLER_TIMEOUT))) {
-					// if this ESC was previously available disable all notch filters if forced or timeout
-					_esc_available.set(esc, false);
-
-					perf_count(_dynamic_notch_filter_esc_rpm_disable_perf);
-
-					for (int axis = 0; axis < 3; axis++) {
-						for (int harmonic = 0; harmonic < MAX_NUM_ESC_RPM_HARMONICS; harmonic++) {
-							_dynamic_notch_filter_esc_rpm[axis][esc][harmonic].setParameters(0, 0, 0);
-						}
+					} else {
+						_esc_available.set(esc, false);
 					}
 				}
 			}
+		}
 
-		} else {
-			DisableDynamicNotchEscRpm();
+		// check ESC feedback timeout
+		for (size_t esc = 0; esc < MAX_NUM_ESCS; esc++) {
+			if (_esc_available[esc] && (time_now_us > _last_esc_rpm_notch_update[esc] + DYNAMIC_NOTCH_FITLER_TIMEOUT)) {
+
+				_esc_available.set(esc, false);
+
+				for (int harmonic = 0; harmonic < _esc_rpm_harmonics; harmonic++) {
+					for (int axis = 0; axis < 3; axis++) {
+						_dynamic_notch_filter_esc_rpm[harmonic][axis][esc].disable();
+						perf_count(_dynamic_notch_filter_esc_rpm_disable_perf);
+					}
+				}
+			}
 		}
 	}
 
 #endif // !CONSTRAINED_FLASH
 }
 
-void VehicleAngularVelocity::UpdateDynamicNotchFFT(bool force)
+void VehicleAngularVelocity::UpdateDynamicNotchFFT(const hrt_abstime &time_now_us, bool force)
 {
 #if !defined(CONSTRAINED_FLASH)
 	const bool enabled = _param_imu_gyro_dnf_en.get() & DynamicNotch::FFT;
@@ -602,12 +646,10 @@ void VehicleAngularVelocity::UpdateDynamicNotchFFT(bool force)
 
 		if (_sensor_gyro_fft_sub.copy(&sensor_gyro_fft)
 		    && (sensor_gyro_fft.device_id == _selected_sensor_device_id)
-		    && (hrt_elapsed_time(&sensor_gyro_fft.timestamp) < DYNAMIC_NOTCH_FITLER_TIMEOUT)
+		    && (time_now_us < sensor_gyro_fft.timestamp + DYNAMIC_NOTCH_FITLER_TIMEOUT)
 		    && ((fabsf(sensor_gyro_fft.sensor_sample_rate_hz - _filter_sample_rate_hz) / _filter_sample_rate_hz) < 0.02f)) {
 
-			// ignore any peaks below half the gyro cutoff frequency
-			const float peak_freq_min = 10.f; // lower bound TODO: configurable?
-			const float peak_freq_max = _filter_sample_rate_hz / 3.f; // upper bound safety (well below Nyquist)
+			static constexpr float peak_freq_min = 10.f; // lower bound TODO: configurable?
 
 			const float bandwidth = math::constrain(sensor_gyro_fft.resolution_hz, 8.f, 30.f); // TODO: base on numerical limits?
 
@@ -615,35 +657,24 @@ void VehicleAngularVelocity::UpdateDynamicNotchFFT(bool force)
 
 			for (int axis = 0; axis < 3; axis++) {
 				for (int peak = 0; peak < MAX_NUM_FFT_PEAKS; peak++) {
-					auto &nf = _dynamic_notch_filter_fft[axis][peak];
-
-					bool reset = (nf.getNotchFreq() <= FLT_EPSILON); // notch was previously disabled
 
 					const float peak_freq = peak_frequencies[axis][peak];
 
-					if (PX4_ISFINITE(peak_freq) && (peak_freq > peak_freq_min) && (peak_freq < peak_freq_max)) {
+					auto &nf = _dynamic_notch_filter_fft[axis][peak];
 
-						const float notch_freq_diff = fabsf(nf.getNotchFreq() - peak_freq);
-
+					if (peak_freq > peak_freq_min) {
 						// update filter parameters if frequency changed or forced
-						if (force || reset || (notch_freq_diff > 0.1f)) {
+						if (force || !nf.initialized() || (fabsf(nf.getNotchFreq() - peak_freq) > 0.1f)) {
 							nf.setParameters(_filter_sample_rate_hz, peak_freq, bandwidth);
 							perf_count(_dynamic_notch_filter_fft_update_perf);
-						}
-
-						// force reset if the notch frequency jumps significantly
-						if (force || reset || (notch_freq_diff > bandwidth)) {
-							const Vector3f reset_angular_velocity{GetResetAngularVelocity()};
-							nf.reset(reset_angular_velocity(axis));
-							perf_count(_dynamic_notch_filter_fft_reset_perf);
 						}
 
 						_dynamic_notch_fft_available = true;
 
 					} else {
 						// disable this notch filter (if it isn't already)
-						if (force || !reset) {
-							nf.setParameters(0, 0, 0);
+						if (nf.getNotchFreq() > 0.f) {
+							nf.disable();
 							perf_count(_dynamic_notch_filter_fft_disable_perf);
 						}
 					}
@@ -663,13 +694,11 @@ float VehicleAngularVelocity::FilterAngularVelocity(int axis, float data[], int 
 #if !defined(CONSTRAINED_FLASH)
 
 	// Apply dynamic notch filter from ESC RPM
-	if (_dynamic_notch_esc_rpm_available) {
-
-		for (int esc = 0; esc < MAX_NUM_ESC_RPM; esc++) {
+	if (_dynamic_notch_filter_esc_rpm) {
+		for (int esc = 0; esc < MAX_NUM_ESCS; esc++) {
 			if (_esc_available[esc]) {
-				// apply notch filters higher -> lowest frequency
-				for (int harmonic = MAX_NUM_ESC_RPM_HARMONICS - 1; harmonic >= 0; harmonic--) {
-					_dynamic_notch_filter_esc_rpm[axis][esc][harmonic].applyArray(data, N);
+				for (int harmonic = 0; harmonic < _esc_rpm_harmonics; harmonic++) {
+					_dynamic_notch_filter_esc_rpm[harmonic][axis][esc].applyArray(data, N);
 				}
 			}
 		}
@@ -686,9 +715,14 @@ float VehicleAngularVelocity::FilterAngularVelocity(int axis, float data[], int 
 
 #endif // !CONSTRAINED_FLASH
 
-	// Apply general notch filter (IMU_GYRO_NF_FREQ)
-	if (_notch_filter_velocity[axis].getNotchFreq() > 0.f) {
-		_notch_filter_velocity[axis].applyArray(data, N);
+	// Apply general notch filter 0 (IMU_GYRO_NF0_FRQ)
+	if (_notch_filter0_velocity[axis].getNotchFreq() > 0.f) {
+		_notch_filter0_velocity[axis].applyArray(data, N);
+	}
+
+	// Apply general notch filter 1 (IMU_GYRO_NF1_FRQ)
+	if (_notch_filter1_velocity[axis].getNotchFreq() > 0.f) {
+		_notch_filter1_velocity[axis].applyArray(data, N);
 	}
 
 	// Apply general low-pass filter (IMU_GYRO_CUTOFF)
@@ -714,20 +748,23 @@ float VehicleAngularVelocity::FilterAngularAcceleration(int axis, float inverse_
 
 void VehicleAngularVelocity::Run()
 {
+	perf_begin(_cycle_perf);
+
 	// backup schedule
 	ScheduleDelayed(10_ms);
 
+	const hrt_abstime time_now_us = hrt_absolute_time();
+
 	// update corrections first to set _selected_sensor
-	const bool selection_updated = SensorSelectionUpdate();
+	const bool selection_updated = SensorSelectionUpdate(time_now_us);
 
 	if (selection_updated || _update_sample_rate) {
 		if (!UpdateSampleRate()) {
 			// sensor sample rate required to run
+			perf_end(_cycle_perf);
 			return;
 		}
 	}
-
-	perf_begin(_cycle_perf);
 
 	ParametersUpdate();
 
@@ -735,16 +772,17 @@ void VehicleAngularVelocity::Run()
 	SensorBiasUpdate(selection_updated);
 
 	if (_reset_filters) {
-		ResetFilters();
+		ResetFilters(time_now_us);
 
 		if (_reset_filters) {
 			// not safe to run until filters configured
+			perf_end(_cycle_perf);
 			return;
 		}
 	}
 
-	UpdateDynamicNotchEscRpm();
-	UpdateDynamicNotchFFT();
+	UpdateDynamicNotchEscRpm(time_now_us);
+	UpdateDynamicNotchFFT(time_now_us);
 
 	if (_fifo_available) {
 		// process all outstanding fifo messages
@@ -829,7 +867,7 @@ void VehicleAngularVelocity::Run()
 	}
 
 	// force reselection on timeout
-	if (hrt_elapsed_time(&_last_publish) > 500_ms) {
+	if (time_now_us > _last_publish + 500_ms) {
 		SensorSelectionUpdate(true);
 	}
 
@@ -877,9 +915,10 @@ bool VehicleAngularVelocity::CalibrateAndPublish(const hrt_abstime &timestamp_sa
 
 void VehicleAngularVelocity::PrintStatus()
 {
-	PX4_INFO("selected sensor: %" PRIu32 ", rate: %.1f Hz %s, estimated bias: [%.5f %.5f %.5f]",
-		 _calibration.device_id(), (double)_filter_sample_rate_hz, _fifo_available ? "FIFO" : "",
-		 (double)_bias(0), (double)_bias(1), (double)_bias(2));
+	PX4_INFO_RAW("[vehicle_angular_velocity] selected sensor: %" PRIu32
+		     ", rate: %.1f Hz %s, estimated bias: [%.5f %.5f %.5f]\n",
+		     _calibration.device_id(), (double)_filter_sample_rate_hz, _fifo_available ? "FIFO" : "",
+		     (double)_bias(0), (double)_bias(1), (double)_bias(2));
 
 	_calibration.PrintStatus();
 
@@ -888,11 +927,9 @@ void VehicleAngularVelocity::PrintStatus()
 	perf_print_counter(_selection_changed_perf);
 #if !defined(CONSTRAINED_FLASH)
 	perf_print_counter(_dynamic_notch_filter_esc_rpm_disable_perf);
-	perf_print_counter(_dynamic_notch_filter_esc_rpm_reset_perf);
 	perf_print_counter(_dynamic_notch_filter_esc_rpm_update_perf);
 
 	perf_print_counter(_dynamic_notch_filter_fft_disable_perf);
-	perf_print_counter(_dynamic_notch_filter_fft_reset_perf);
 	perf_print_counter(_dynamic_notch_filter_fft_update_perf);
 #endif // CONSTRAINED_FLASH
 }

@@ -39,8 +39,11 @@ px4_add_module(
 	COMPILE_FLAGS
 		${MAX_CUSTOM_OPT_LEVEL}
 		-fno-associative-math
+		#-DDEBUG_BUILD
 	INCLUDES
 		EKF
+	PRIORITY
+		"SCHED_PRIORITY_MAX - 18" # max priority below high priority WQ threads
 	STACK_MAX
 		3600
 	SRCS
@@ -53,6 +56,7 @@ px4_add_module(
 		EKF/ekf_helper.cpp
 		EKF/EKFGSF_yaw.cpp
 		EKF/estimator_interface.cpp
+		EKF/fake_pos_control.cpp
 		EKF/gps_checks.cpp
 		EKF/gps_control.cpp
 		EKF/gps_fusion.cpp
@@ -62,11 +66,13 @@ px4_add_module(
 		EKF/mag_control.cpp
 		EKF/mag_fusion.cpp
 		EKF/optflow_fusion.cpp
+		EKF/range_finder_consistency_check.cpp
 		EKF/sensor_range_finder.cpp
 		EKF/sideslip_fusion.cpp
 		EKF/terrain_estimator.cpp
 		EKF/utils.cpp
 		EKF/vel_pos_fusion.cpp
+		EKF/zero_velocity_update.cpp
 
 		EKF2.cpp
 		EKF2.hpp

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2020-2021 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020-2022 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -76,7 +76,7 @@ public:
 	void PrintStatus();
 
 private:
-	void ParametersUpdate(bool force = false);
+	bool ParametersUpdate(bool force = false);
 	bool Publish();
 	void Run() override;
 
@@ -84,10 +84,13 @@ private:
 	bool UpdateGyro();
 
 	void UpdateIntegratorConfiguration();
-	void UpdateAccelVibrationMetrics(const matrix::Vector3f &acceleration);
-	void UpdateGyroVibrationMetrics(const matrix::Vector3f &angular_velocity);
+
+	inline void UpdateAccelVibrationMetrics(const matrix::Vector3f &acceleration);
+	inline void UpdateGyroVibrationMetrics(const matrix::Vector3f &angular_velocity);
 
 	void SensorCalibrationUpdate();
+	void SensorCalibrationSaveAccel();
+	void SensorCalibrationSaveGyro();
 
 	uORB::PublicationMulti<vehicle_imu_s> _vehicle_imu_pub{ORB_ID(vehicle_imu)};
 	uORB::PublicationMulti<vehicle_imu_status_s> _vehicle_imu_status_pub{ORB_ID(vehicle_imu_status)};
@@ -113,8 +116,6 @@ private:
 	hrt_abstime _accel_timestamp_sample_last{0};
 	hrt_abstime _gyro_timestamp_sample_last{0};
 	hrt_abstime _gyro_timestamp_last{0};
-
-	hrt_abstime _in_flight_calibration_check_timestamp_last{0};
 
 	math::WelfordMean<matrix::Vector3f> _raw_accel_mean{};
 	math::WelfordMean<matrix::Vector3f> _raw_gyro_mean{};
@@ -143,6 +144,9 @@ private:
 	matrix::Vector3f _angular_velocity_prev{}; // angular velocity from the previous IMU measurement for vibration metrics
 
 	vehicle_imu_status_s _status{};
+
+	float _coning_norm_accum{0};
+	float _coning_norm_accum_total_time_s{0};
 
 	uint8_t _delta_velocity_clipping{0};
 
@@ -173,13 +177,17 @@ private:
 	InFlightCalibration _accel_learned_calibration[ORB_MULTI_MAX_INSTANCES] {};
 	InFlightCalibration _gyro_learned_calibration[ORB_MULTI_MAX_INSTANCES] {};
 
+	static constexpr hrt_abstime INFLIGHT_CALIBRATION_QUIET_PERIOD_US{30_s};
+
+	hrt_abstime _in_flight_calibration_check_timestamp_last{0};
 
 	perf_counter_t _accel_generation_gap_perf{perf_alloc(PC_COUNT, MODULE_NAME": accel data gap")};
 	perf_counter_t _gyro_generation_gap_perf{perf_alloc(PC_COUNT, MODULE_NAME": gyro data gap")};
 
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::IMU_INTEG_RATE>) _param_imu_integ_rate,
-		(ParamInt<px4::params::IMU_GYRO_RATEMAX>) _param_imu_gyro_ratemax
+		(ParamInt<px4::params::IMU_GYRO_RATEMAX>) _param_imu_gyro_ratemax,
+		(ParamBool<px4::params::SENS_IMU_AUTOCAL>) _param_sens_imu_autocal
 	)
 };
 

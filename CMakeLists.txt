@@ -125,6 +125,11 @@ define_property(GLOBAL PROPERTY PX4_MODULE_LIBRARIES
                  FULL_DOCS "List of all PX4 module libraries"
                  )
 
+define_property(GLOBAL PROPERTY PX4_KERNEL_MODULE_LIBRARIES
+                 BRIEF_DOCS "PX4 kernel side module libs"
+                 FULL_DOCS "List of all PX4 kernel module libraries"
+                 )
+
 define_property(GLOBAL PROPERTY PX4_MODULE_PATHS
                  BRIEF_DOCS "PX4 module paths"
                  FULL_DOCS "List of paths to all PX4 modules"
@@ -142,6 +147,7 @@ set(CONFIG "px4_sitl_default" CACHE STRING "desired configuration")
 
 include(px4_add_module)
 set(config_module_list)
+set(config_kernel_list)
 
 # Find Python
 # If using catkin, Python 2 is found since it points
@@ -406,6 +412,7 @@ endif()
 # subdirectories
 #
 add_library(parameters_interface INTERFACE)
+add_library(kernel_parameters_interface INTERFACE)
 
 include(px4_add_library)
 add_subdirectory(src/lib EXCLUDE_FROM_ALL)
@@ -428,7 +435,13 @@ add_subdirectory(src/lib/metadata EXCLUDE_FROM_ALL)
 
 # must be the last module before firmware
 add_subdirectory(src/lib/parameters EXCLUDE_FROM_ALL)
+
+if(${PX4_PLATFORM} STREQUAL "nuttx" AND NOT CONFIG_BUILD_FLAT)
+target_link_libraries(parameters_interface INTERFACE usr_parameters)
+target_link_libraries(kernel_parameters_interface INTERFACE parameters)
+else()
 target_link_libraries(parameters_interface INTERFACE parameters)
+endif()
 
 # firmware added last to generate the builtin for included modules
 add_subdirectory(platforms/${PX4_PLATFORM})

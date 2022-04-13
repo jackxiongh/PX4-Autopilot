@@ -134,7 +134,7 @@ void MagBiasEstimator::Run()
 		vehicle_status_flags_s vehicle_status_flags;
 
 		if (_vehicle_status_flags_sub.copy(&vehicle_status_flags)) {
-			bool system_calibrating = vehicle_status_flags.condition_calibration_enabled;
+			bool system_calibrating = vehicle_status_flags.calibration_enabled;
 
 			if (system_calibrating != _system_calibrating) {
 				_system_calibrating = system_calibrating;
@@ -170,7 +170,7 @@ void MagBiasEstimator::Run()
 				updated = true;
 
 				// apply existing mag calibration
-				_calibration[mag_index].set_device_id(sensor_mag.device_id, sensor_mag.is_external);
+				_calibration[mag_index].set_device_id(sensor_mag.device_id);
 
 				const Vector3f mag_calibrated = _calibration[mag_index].Correct(Vector3f{sensor_mag.x, sensor_mag.y, sensor_mag.z});
 

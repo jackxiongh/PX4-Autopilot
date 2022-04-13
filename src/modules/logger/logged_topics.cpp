@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019, 2021 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2019-2022 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -62,7 +62,7 @@ void LoggedTopics::add_default_topics()
 	add_topic("cpuload");
 	add_optional_topic("esc_status", 250);
 	add_topic("failure_detector_status", 100);
-	add_topic("follow_target", 500);
+	add_optional_topic("follow_target", 500);
 	add_optional_topic("generator_status");
 	add_optional_topic("gps_dump");
 	add_optional_topic("heater_status");
@@ -70,11 +70,14 @@ void LoggedTopics::add_default_topics()
 	add_topic("hover_thrust_estimate", 100);
 	add_topic("input_rc", 500);
 	add_optional_topic("internal_combustion_engine_status", 10);
+	add_optional_topic("irlock_report", 1000);
+	add_optional_topic("landing_target_pose", 1000);
 	add_optional_topic("magnetometer_bias_estimate", 200);
 	add_topic("manual_control_setpoint", 200);
 	add_topic("manual_control_switches");
 	add_topic("mission_result");
 	add_topic("navigator_mission_item");
+	add_topic("npfg_status", 100);
 	add_topic("offboard_control_mode", 100);
 	add_topic("onboard_computer_status", 10);
 	add_topic("parameter_update");
@@ -82,7 +85,6 @@ void LoggedTopics::add_default_topics()
 	add_topic("position_setpoint_triplet", 200);
 	add_optional_topic("px4io_status");
 	add_topic("radio_status");
-	add_optional_topic("rpm", 500);
 	add_topic("rtl_time_estimate", 1000);
 	add_topic("safety");
 	add_topic("sensor_combined");
@@ -118,9 +120,11 @@ void LoggedTopics::add_default_topics()
 
 	// multi topics
 	add_optional_topic_multi("actuator_outputs", 100, 3);
-	add_topic_multi("airspeed_wind", 1000, 4);
-	add_topic_multi("control_allocator_status", 200, 2);
+	add_optional_topic_multi("airspeed_wind", 1000, 4);
+	add_optional_topic_multi("control_allocator_status", 200, 2);
 	add_optional_topic_multi("rate_ctrl_status", 200, 2);
+	add_optional_topic_multi("sensor_hygrometer", 500, 4);
+	add_optional_topic_multi("rpm", 200);
 	add_optional_topic_multi("telemetry_status", 1000, 4);
 
 	// EKF multi topics (currently max 9 estimators)
@@ -128,7 +132,7 @@ void LoggedTopics::add_default_topics()
 	static constexpr uint8_t MAX_ESTIMATOR_INSTANCES = 1;
 #else
 	static constexpr uint8_t MAX_ESTIMATOR_INSTANCES = 6; // artificially limited until PlotJuggler fixed
-	add_topic("estimator_selector_status");
+	add_optional_topic("estimator_selector_status");
 	add_optional_topic_multi("estimator_attitude", 500, MAX_ESTIMATOR_INSTANCES);
 	add_optional_topic_multi("estimator_global_position", 1000, MAX_ESTIMATOR_INSTANCES);
 	add_optional_topic_multi("estimator_local_position", 500, MAX_ESTIMATOR_INSTANCES);
@@ -136,9 +140,9 @@ void LoggedTopics::add_default_topics()
 #endif
 
 	// always add the first instance
-	add_topic("ekf_gps_drift", 1000);
 	add_topic("estimator_baro_bias", 500);
 	add_topic("estimator_event_flags", 0);
+	add_topic("estimator_gps_status", 1000);
 	add_topic("estimator_innovation_test_ratios", 500);
 	add_topic("estimator_innovation_variances", 500);
 	add_topic("estimator_innovations", 500);
@@ -150,9 +154,9 @@ void LoggedTopics::add_default_topics()
 	add_topic("estimator_visual_odometry_aligned", 200);
 	add_topic("yaw_estimator_status", 1000);
 
-	add_optional_topic_multi("ekf_gps_drift", 1000, MAX_ESTIMATOR_INSTANCES);
 	add_optional_topic_multi("estimator_baro_bias", 500, MAX_ESTIMATOR_INSTANCES);
 	add_optional_topic_multi("estimator_event_flags", 0, MAX_ESTIMATOR_INSTANCES);
+	add_optional_topic_multi("estimator_gps_status", 1000, MAX_ESTIMATOR_INSTANCES);
 	add_optional_topic_multi("estimator_innovation_test_ratios", 500, MAX_ESTIMATOR_INSTANCES);
 	add_optional_topic_multi("estimator_innovation_variances", 500, MAX_ESTIMATOR_INSTANCES);
 	add_optional_topic_multi("estimator_innovations", 500, MAX_ESTIMATOR_INSTANCES);
@@ -172,6 +176,7 @@ void LoggedTopics::add_default_topics()
 	add_optional_topic_multi("sensor_accel", 1000, 4);
 	add_optional_topic_multi("sensor_baro", 1000, 4);
 	add_topic_multi("sensor_gps", 1000, 2);
+	add_topic_multi("sensor_gnss_relative", 1000, 1);
 	add_optional_topic("pps_capture", 1000);
 	add_optional_topic_multi("sensor_gyro", 1000, 4);
 	add_optional_topic_multi("sensor_mag", 1000, 4);
@@ -190,6 +195,25 @@ void LoggedTopics::add_default_topics()
 	add_topic("vehicle_attitude_groundtruth", 10);
 	add_topic("vehicle_global_position_groundtruth", 100);
 	add_topic("vehicle_local_position_groundtruth", 100);
+
+	// EKF replay
+	add_topic("estimator_baro_bias");
+	add_topic("estimator_event_flags");
+	add_topic("estimator_gps_status");
+	add_topic("estimator_innovation_test_ratios");
+	add_topic("estimator_innovation_variances");
+	add_topic("estimator_innovations");
+	add_topic("estimator_optical_flow_vel");
+	add_topic("estimator_sensor_bias");
+	add_topic("estimator_states");
+	add_topic("estimator_status");
+	add_topic("estimator_status_flags");
+	add_topic("estimator_visual_odometry_aligned");
+	add_topic("vehicle_attitude");
+	add_topic("vehicle_global_position");
+	add_topic("vehicle_local_position");
+	add_topic("wind");
+	add_topic("yaw_estimator_status");
 #endif /* CONFIG_ARCH_BOARD_PX4_SITL */
 
 
@@ -298,6 +322,11 @@ void LoggedTopics::add_system_identification_topics()
 	add_topic("vehicle_torque_setpoint");
 }
 
+void LoggedTopics::add_mavlink_tunnel()
+{
+	add_topic("mavlink_tunnel");
+}
+
 int LoggedTopics::add_topics_from_file(const char *fname)
 {
 	int ntopics = 0;
@@ -381,6 +410,11 @@ bool LoggedTopics::add_topic(const orb_metadata *topic, uint16_t interval_ms, ui
 
 	if (optional && orb_exists(topic, instance) != 0) {
 		PX4_DEBUG("Not adding non-existing optional topic %s %i", topic->o_name, instance);
+
+		if (instance == 0 && _subscriptions.num_excluded_optional_topic_ids < MAX_EXCLUDED_OPTIONAL_TOPICS_NUM) {
+			_subscriptions.excluded_optional_topic_ids[_subscriptions.num_excluded_optional_topic_ids++] = topic->o_id;
+		}
+
 		return false;
 	}
 
@@ -393,6 +427,8 @@ bool LoggedTopics::add_topic(const orb_metadata *topic, uint16_t interval_ms, ui
 
 bool LoggedTopics::add_topic(const char *name, uint16_t interval_ms, uint8_t instance, bool optional)
 {
+	interval_ms /= _rate_factor;
+
 	const orb_metadata *const *topics = orb_get_topics();
 	bool success = false;
 
@@ -405,7 +441,7 @@ bool LoggedTopics::add_topic(const char *name, uint16_t interval_ms, uint8_t ins
 				if (_subscriptions.sub[j].id == static_cast<ORB_ID>(topics[i]->o_id) &&
 				    _subscriptions.sub[j].instance == instance) {
 
-					PX4_DEBUG("logging topic %s(%" PRUu8 "), interval: %" PRUu16 ", already added, only setting interval",
+					PX4_DEBUG("logging topic %s(%" PRIu8 "), interval: %" PRIu16 ", already added, only setting interval",
 						  topics[i]->o_name, instance, interval_ms);
 
 					_subscriptions.sub[j].interval_ms = interval_ms;
@@ -417,7 +453,11 @@ bool LoggedTopics::add_topic(const char *name, uint16_t interval_ms, uint8_t ins
 
 			if (!already_added) {
 				success = add_topic(topics[i], interval_ms, instance, optional);
-				PX4_DEBUG("logging topic: %s(%" PRUu8 "), interval: %" PRUu16, topics[i]->o_name, instance, interval_ms);
+
+				if (success) {
+					PX4_DEBUG("logging topic: %s(%" PRIu8 "), interval: %" PRIu16, topics[i]->o_name, instance, interval_ms);
+				}
+
 				break;
 			}
 		}
@@ -492,5 +532,9 @@ void LoggedTopics::initialize_configured_topics(SDLogProfileMask profile)
 
 	if (profile & SDLogProfileMask::RAW_IMU_ACCEL_FIFO) {
 		add_raw_imu_accel_fifo();
+	}
+
+	if (profile & SDLogProfileMask::MAVLINK_TUNNEL) {
+		add_mavlink_tunnel();
 	}
 }

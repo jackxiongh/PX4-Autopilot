@@ -54,7 +54,9 @@ static bool operator ==(const manual_control_switches_s &a, const manual_control
 		a.kill_switch == b.kill_switch &&
 		a.arm_switch == b.arm_switch &&
 		a.transition_switch == b.transition_switch &&
-		a.gear_switch == b.gear_switch);
+		a.gear_switch == b.gear_switch &&
+		a.photo_switch == b.photo_switch &&
+		a.video_switch == b.video_switch);
 }
 
 static bool operator !=(const manual_control_switches_s &a, const manual_control_switches_s &b) { return !(a == b); }
@@ -113,7 +115,7 @@ RCUpdate::~RCUpdate()
 bool RCUpdate::init()
 {
 	if (!_input_rc_sub.registerCallback()) {
-		PX4_ERR("input_rc callback registration failed!");
+		PX4_ERR("callback registration failed");
 		return false;
 	}
 
@@ -511,7 +513,7 @@ void RCUpdate::Run()
 		if (input_source_stable && channel_count_stable && !_rc_signal_lost_hysteresis.get_state()) {
 
 			if ((input_rc.timestamp_last_signal > _last_timestamp_signal)
-			    && (input_rc.timestamp_last_signal - _last_timestamp_signal < 1_s)) {
+			    && (input_rc.timestamp_last_signal < _last_timestamp_signal + VALID_DATA_MIN_INTERVAL_US)) {
 
 				perf_count(_valid_data_interval_perf);
 
@@ -540,6 +542,12 @@ void RCUpdate::Run()
 			}
 
 			_last_timestamp_signal = input_rc.timestamp_last_signal;
+
+		} else {
+			// RC input unstable or lost, clear any previous manual_switches
+			if (_manual_switches_last_publish.timestamp_sample != 0) {
+				_manual_switches_last_publish = {};
+			}
 		}
 
 		memcpy(_rc_values_previous, input_rc.values, sizeof(input_rc.values[0]) * channel_count_limited);
@@ -636,8 +644,15 @@ void RCUpdate::UpdateManualSwitches(const hrt_abstime &timestamp_sample)
 	switches.transition_switch = get_rc_sw2pos_position(rc_channels_s::FUNCTION_TRANSITION, _param_rc_trans_th.get());
 	switches.gear_switch       = get_rc_sw2pos_position(rc_channels_s::FUNCTION_GEAR,       _param_rc_gear_th.get());
 
-	// last 2 switch updates identical (simple protection from bad RC data)
-	if (switches == _manual_switches_previous) {
+#if defined(ATL_MANTIS_RC_INPUT_HACKS)
+	switches.photo_switch = get_rc_sw2pos_position(rc_channels_s::FUNCTION_AUX_3, 0.5f);
+	switches.video_switch = get_rc_sw2pos_position(rc_channels_s::FUNCTION_AUX_4, 0.5f);
+#endif
+
+	// last 2 switch updates identical within 1 second (simple protection from bad RC data)
+	if ((switches == _manual_switches_previous)
+	    && (switches.timestamp_sample < _manual_switches_previous.timestamp_sample + VALID_DATA_MIN_INTERVAL_US)) {
+
 		const bool switches_changed = (switches != _manual_switches_last_publish);
 
 		// publish immediately on change or at ~1 Hz

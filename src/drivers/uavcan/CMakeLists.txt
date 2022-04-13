@@ -127,6 +127,8 @@ px4_add_module(
 	MODULE drivers__uavcan
 	MAIN uavcan
 	STACK_MAIN 4096
+	COMPILE_FLAGS
+		-Wno-format-security # logmessage.hpp
 	INCLUDES
 		${DSDLC_OUTPUT}
 		${LIBUAVCAN_DIR}/libuavcan/include
@@ -162,9 +164,9 @@ px4_add_module(
 		sensors/rangefinder.cpp
 		sensors/accel.cpp
 		sensors/gyro.cpp
-		sensors/cbat.cpp
 		sensors/ice_status.cpp
 		sensors/hygrometer.cpp
+		sensors/safety_button.cpp
 
 	MODULE_CONFIG
 		module.yaml
@@ -172,11 +174,11 @@ px4_add_module(
 	DEPENDS
 		px4_uavcan_dsdlc
 
+		button_publisher
 		drivers_rangefinder
 		led
 		mixer
 		mixer_module
-		output_limit
 		version
 
 		git_uavcan

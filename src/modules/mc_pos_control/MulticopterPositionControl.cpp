@@ -65,7 +65,7 @@ MulticopterPositionControl::~MulticopterPositionControl()
 bool MulticopterPositionControl::init()
 {
 	if (!_local_pos_sub.registerCallback()) {
-		PX4_ERR("vehicle_local_position callback registration failed!");
+		PX4_ERR("callback registration failed");
 		return false;
 	}
 
@@ -75,7 +75,7 @@ bool MulticopterPositionControl::init()
 	return true;
 }
 
-int MulticopterPositionControl::parameters_update(bool force)
+void MulticopterPositionControl::parameters_update(bool force)
 {
 	// check for parameter updates
 	if (_parameter_update_sub.updated() || force) {
@@ -127,7 +127,9 @@ int MulticopterPositionControl::parameters_update(bool force)
 
 		if (_param_mpc_z_vel_all.get() >= 0.f) {
 			float z_vel = _param_mpc_z_vel_all.get();
+			num_changed += _param_mpc_z_v_auto_up.commit_no_notification(z_vel);
 			num_changed += _param_mpc_z_vel_max_up.commit_no_notification(z_vel);
+			num_changed += _param_mpc_z_v_auto_dn.commit_no_notification(z_vel * 0.75f);
 			num_changed += _param_mpc_z_vel_max_dn.commit_no_notification(z_vel * 0.75f);
 			num_changed += _param_mpc_tko_speed.commit_no_notification(z_vel * 0.6f);
 			num_changed += _param_mpc_land_speed.commit_no_notification(z_vel * 0.5f);
@@ -189,6 +191,28 @@ int MulticopterPositionControl::parameters_update(bool force)
 					    "Manual speed has been constrained by maximum speed", _param_mpc_xy_vel_max.get());
 		}
 
+		if (_param_mpc_z_v_auto_up.get() > _param_mpc_z_vel_max_up.get()) {
+			_param_mpc_z_v_auto_up.set(_param_mpc_z_vel_max_up.get());
+			_param_mpc_z_v_auto_up.commit();
+			mavlink_log_critical(&_mavlink_log_pub, "Ascent speed has been constrained by max speed\t");
+			/* EVENT
+			 * @description <param>MPC_Z_V_AUTO_UP</param> is set to {1:.0}.
+			 */
+			events::send<float>(events::ID("mc_pos_ctrl_up_vel_set"), events::Log::Warning,
+					    "Ascent speed has been constrained by max speed", _param_mpc_z_vel_max_up.get());
+		}
+
+		if (_param_mpc_z_v_auto_dn.get() > _param_mpc_z_vel_max_dn.get()) {
+			_param_mpc_z_v_auto_dn.set(_param_mpc_z_vel_max_dn.get());
+			_param_mpc_z_v_auto_dn.commit();
+			mavlink_log_critical(&_mavlink_log_pub, "Descent speed has been constrained by max speed\t");
+			/* EVENT
+			 * @description <param>MPC_Z_V_AUTO_DN</param> is set to {1:.0}.
+			 */
+			events::send<float>(events::ID("mc_pos_ctrl_down_vel_set"), events::Log::Warning,
+					    "Descent speed has been constrained by max speed", _param_mpc_z_vel_max_dn.get());
+		}
+
 		if (_param_mpc_thr_hover.get() > _param_mpc_thr_max.get() ||
 		    _param_mpc_thr_hover.get() < _param_mpc_thr_min.get()) {
 			_param_mpc_thr_hover.set(math::constrain(_param_mpc_thr_hover.get(), _param_mpc_thr_min.get(),
@@ -215,8 +239,6 @@ int MulticopterPositionControl::parameters_update(bool force)
 		_takeoff.setTakeoffRampTime(_param_mpc_tko_ramp_t.get());
 		_takeoff.generateInitialRampValue(_param_mpc_z_vel_p_acc.get());
 	}
-
-	return OK;
 }
 
 PositionControlStates MulticopterPositionControl::set_vehicle_states(const vehicle_local_position_s &local_pos)
@@ -297,8 +319,6 @@ void MulticopterPositionControl::Run()
 
 		// set _dt in controllib Block for BlockDerivative
 		setDt(dt);
-
-		const bool was_in_failsafe = _in_failsafe;
 		_in_failsafe = false;
 
 		_vehicle_control_mode_sub.update(&_vehicle_control_mode);
@@ -454,14 +474,16 @@ void MulticopterPositionControl::Run()
 
 			} else {
 				// Failsafe
-				if ((time_stamp_now - _last_warn) > 2_s) {
+				const bool warn_failsafe = (time_stamp_now - _last_warn) > 2_s;
+
+				if (warn_failsafe) {
 					PX4_WARN("invalid setpoints");
 					_last_warn = time_stamp_now;
 				}
 
 				vehicle_local_position_setpoint_s failsafe_setpoint{};
 
-				failsafe(time_stamp_now, failsafe_setpoint, states, !was_in_failsafe);
+				failsafe(time_stamp_now, failsafe_setpoint, states, warn_failsafe);
 
 				// reset constraints
 				_vehicle_constraints = {0, NAN, NAN, false, {}};

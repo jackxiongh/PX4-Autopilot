@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2020-2021 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020-2022 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,17 +43,18 @@ EKF2Selector::EKF2Selector() :
 	ModuleParams(nullptr),
 	ScheduledWorkItem("ekf2_selector", px4::wq_configurations::nav_and_controllers)
 {
+	_estimator_selector_status_pub.advertise();
+	_sensor_selection_pub.advertise();
+	_vehicle_attitude_pub.advertise();
+	_vehicle_global_position_pub.advertise();
+	_vehicle_local_position_pub.advertise();
+	_vehicle_odometry_pub.advertise();
+	_wind_pub.advertise();
 }
 
 EKF2Selector::~EKF2Selector()
 {
 	Stop();
-}
-
-bool EKF2Selector::Start()
-{
-	ScheduleNow();
-	return true;
 }
 
 void EKF2Selector::Stop()
@@ -531,6 +532,24 @@ void EKF2Selector::PublishVehicleOdometry()
 	vehicle_odometry_s odometry;
 
 	if (_instance[_selected_instance].estimator_odometry_sub.update(&odometry)) {
+
+		bool instance_change = false;
+
+		if (_instance[_selected_instance].estimator_odometry_sub.get_instance() != _odometry_instance_prev) {
+			_odometry_instance_prev = _instance[_selected_instance].estimator_odometry_sub.get_instance();
+			instance_change = true;
+		}
+
+		if (_odometry_last.timestamp != 0) {
+			// reset
+			if (instance_change || (odometry.reset_counter != _odometry_last.reset_counter)) {
+				++_odometry_reset_counter;
+			}
+
+		} else {
+			_odometry_reset_counter = odometry.reset_counter;
+		}
+
 		bool publish = true;
 
 		// ensure monotonically increasing timestamp_sample through reset, don't publish
@@ -541,10 +560,13 @@ void EKF2Selector::PublishVehicleOdometry()
 			publish = false;
 		}
 
-		// save last primary estimator_odometry
+		// save last primary estimator_odometry as published with original resets
 		_odometry_last = odometry;
 
 		if (publish) {
+			// republish with total reset count and current timestamp
+			odometry.reset_counter = _odometry_reset_counter;
+
 			odometry.timestamp = hrt_absolute_time();
 			_vehicle_odometry_pub.publish(odometry);
 		}
@@ -652,9 +674,6 @@ void EKF2Selector::PublishWindEstimate()
 
 void EKF2Selector::Run()
 {
-	// re-schedule as backup timeout
-	ScheduleDelayed(FILTER_UPDATE_PERIOD);
-
 	// check for parameter updates
 	if (_parameter_update_sub.updated()) {
 		// clear update
@@ -682,6 +701,7 @@ void EKF2Selector::Run()
 
 		// if still invalid return early and check again on next scheduled run
 		if (_selected_instance == INVALID_INSTANCE) {
+			ScheduleDelayed(100_ms);
 			return;
 		}
 	}
@@ -782,6 +802,9 @@ void EKF2Selector::Run()
 	PublishVehicleGlobalPosition();
 	PublishVehicleOdometry();
 	PublishWindEstimate();
+
+	// re-schedule as backup timeout
+	ScheduleDelayed(FILTER_UPDATE_PERIOD);
 }
 
 void EKF2Selector::PublishEstimatorSelectorStatus()

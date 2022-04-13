@@ -94,8 +94,6 @@ struct mag_worker_data_t {
 	float		*y[MAX_MAGS];
 	float		*z[MAX_MAGS];
 
-	float		temperature[MAX_MAGS] {NAN, NAN, NAN, NAN};
-
 	calibration::Magnetometer calibration[MAX_MAGS] {};
 };
 
@@ -342,7 +340,6 @@ static calibrate_return mag_calibration_worker(detect_orientation_return orienta
 		if (mag_sub[0].updatedBlocking(1000_ms)) {
 			bool rejected = false;
 			Vector3f new_samples[MAX_MAGS] {};
-			float new_temperature[MAX_MAGS] {NAN, NAN, NAN, NAN};
 
 			for (uint8_t cur_mag = 0; cur_mag < MAX_MAGS; cur_mag++) {
 				if (worker_data->calibration[cur_mag].device_id() != 0) {
@@ -371,7 +368,6 @@ static calibrate_return mag_calibration_worker(detect_orientation_return orienta
 
 						if (!reject) {
 							new_samples[cur_mag] = Vector3f{mag.x, mag.y, mag.z};
-							new_temperature[cur_mag] = mag.temperature;
 							updated = true;
 							break;
 						}
@@ -391,14 +387,6 @@ static calibrate_return mag_calibration_worker(detect_orientation_return orienta
 						worker_data->x[cur_mag][worker_data->calibration_counter_total[cur_mag]] = new_samples[cur_mag](0);
 						worker_data->y[cur_mag][worker_data->calibration_counter_total[cur_mag]] = new_samples[cur_mag](1);
 						worker_data->z[cur_mag][worker_data->calibration_counter_total[cur_mag]] = new_samples[cur_mag](2);
-
-						if (!PX4_ISFINITE(worker_data->temperature[cur_mag])) {
-							// set first valid value
-							worker_data->temperature[cur_mag] = new_temperature[cur_mag];
-
-						} else {
-							worker_data->temperature[cur_mag] = 0.5f * (worker_data->temperature[cur_mag] + new_temperature[cur_mag]);
-						}
 
 						worker_data->calibration_counter_total[cur_mag]++;
 					}
@@ -540,7 +528,7 @@ calibrate_return mag_calibrate_all(orb_advert_t *mavlink_log_pub, int32_t cal_ma
 		uORB::SubscriptionData<sensor_mag_s> mag_sub{ORB_ID(sensor_mag), cur_mag};
 
 		if (mag_sub.advertised() && (mag_sub.get().device_id != 0) && (mag_sub.get().timestamp > 0)) {
-			worker_data.calibration[cur_mag].set_device_id(mag_sub.get().device_id, mag_sub.get().is_external);
+			worker_data.calibration[cur_mag].set_device_id(mag_sub.get().device_id);
 		}
 
 		// reset calibration index to match uORB numbering
@@ -912,13 +900,9 @@ calibrate_return mag_calibrate_all(orb_advert_t *mavlink_log_pub, int32_t cal_ma
 					current_cal.set_offdiagonal(offdiag[cur_mag]);
 				}
 
-				current_cal.set_temperature(worker_data.temperature[cur_mag]);
-
-				current_cal.set_calibration_index(cur_mag);
-
 				current_cal.PrintStatus();
 
-				if (current_cal.ParametersSave()) {
+				if (current_cal.ParametersSave(cur_mag, true)) {
 					param_save = true;
 					failed = false;
 
@@ -1016,18 +1000,14 @@ int do_mag_calibration_quick(orb_advert_t *mavlink_log_pub, float heading_radian
 
 			if (mag_sub.advertised() && (mag.timestamp != 0) && (mag.device_id != 0)) {
 
-				calibration::Magnetometer cal{mag.device_id, mag.is_external};
-
-				// force calibration index to uORB index
-				cal.set_calibration_index(cur_mag);
+				calibration::Magnetometer cal{mag.device_id};
 
 				// use any existing scale and store the offset to the expected earth field
 				const Vector3f offset = Vector3f{mag.x, mag.y, mag.z} - (cal.scale().I() * cal.rotation().transpose() * expected_field);
 				cal.set_offset(offset);
-				cal.set_temperature(mag.temperature);
 
 				// save new calibration
-				if (cal.ParametersSave()) {
+				if (cal.ParametersSave(cur_mag)) {
 					cal.PrintStatus();
 					param_save = true;
 					failed = false;

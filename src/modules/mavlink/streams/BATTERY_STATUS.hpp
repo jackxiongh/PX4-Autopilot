@@ -75,7 +75,7 @@ private:
 				bat_msg.current_consumed = (battery_status.connected) ? battery_status.discharged_mah : -1;
 				bat_msg.energy_consumed = -1;
 				bat_msg.current_battery = (battery_status.connected) ? battery_status.current_filtered_a * 100 : -1;
-				bat_msg.battery_remaining = (battery_status.connected) ? ceilf(battery_status.remaining * 100.f) : -1;
+				bat_msg.battery_remaining = (battery_status.connected) ? roundf(battery_status.remaining * 100.f) : -1;
 				// MAVLink extension: 0 is unsupported, in uORB it's NAN
 				bat_msg.time_remaining = (battery_status.connected && (PX4_ISFINITE(battery_status.time_remaining_s))) ?
 							 math::max((int)battery_status.time_remaining_s, 1) : 0;
@@ -101,10 +101,34 @@ private:
 					bat_msg.charge_state = MAV_BATTERY_CHARGE_STATE_FAILED;
 					break;
 
+				case (battery_status_s::BATTERY_STATE_UNHEALTHY):
+					bat_msg.charge_state = MAV_BATTERY_CHARGE_STATE_UNHEALTHY;
+					break;
+
+				case (battery_status_s::BATTERY_STATE_CHARGING):
+					bat_msg.charge_state = MAV_BATTERY_CHARGE_STATE_CHARGING;
+					break;
+
 				default:
 					bat_msg.charge_state = MAV_BATTERY_CHARGE_STATE_UNDEFINED;
 					break;
 				}
+
+				switch (battery_status.mode) {
+				case (battery_status_s::BATTERY_MODE_AUTO_DISCHARGING):
+					bat_msg.mode = MAV_BATTERY_MODE_AUTO_DISCHARGING;
+					break;
+
+				case (battery_status_s::BATTERY_MODE_HOT_SWAP):
+					bat_msg.mode = MAV_BATTERY_MODE_HOT_SWAP;
+					break;
+
+				default:
+					bat_msg.mode = MAV_BATTERY_MODE_UNKNOWN;
+					break;
+				}
+
+				bat_msg.fault_bitmask = battery_status.faults;
 
 				// check if temperature valid
 				if (battery_status.connected && PX4_ISFINITE(battery_status.temperature)) {

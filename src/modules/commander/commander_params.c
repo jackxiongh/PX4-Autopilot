@@ -189,7 +189,7 @@ PARAM_DEFINE_FLOAT(COM_RC_LOSS_T, 0.5f);
  * Delay between RC loss and configured reaction
  *
  * RC signal not updated -> still use data for COM_RC_LOSS_T seconds
- * Consider RC signal lost -> wait COM_RCL_ACT_T seconds on the spot waiting to regain signal
+ * Consider RC signal lost -> wait COM_RCL_ACT_T seconds in Hold mode to regain signal
  * React with failsafe action NAV_RCL_ACT
  *
  * A zero value disables the delay.
@@ -353,6 +353,23 @@ PARAM_DEFINE_INT32(COM_ARM_SWISBTN, 0);
 PARAM_DEFINE_INT32(COM_LOW_BAT_ACT, 0);
 
 /**
+ * Delay between battery state change and failsafe reaction
+ *
+ * Battery state requires action -> wait COM_BAT_ACT_T seconds in Hold mode
+ * for the user to realize and take a custom action
+ * -> React with failsafe action COM_LOW_BAT_ACT
+ *
+ * A zero value disables the delay.
+ *
+ * @group Commander
+ * @unit s
+ * @min 0.0
+ * @max 25.0
+ * @decimal 3
+ */
+PARAM_DEFINE_FLOAT(COM_BAT_ACT_T, 10.0f);
+
+/**
  * Imbalanced propeller failsafe mode
  *
  * Action the system takes when an imbalanced propeller is detected by the failure detector.
@@ -398,6 +415,17 @@ PARAM_DEFINE_FLOAT(COM_OF_LOSS_T, 1.0f);
  * @group Commander
  */
 PARAM_DEFINE_INT32(COM_OBL_ACT, 0);
+
+/**
+ * Set command after a quadchute
+ *
+ * @value -1 No action: stay in current flight mode
+ * @value  0 Return mode
+ * @value  1 Land mode
+ * @value  2 Hold mode
+ * @group Commander
+ */
+PARAM_DEFINE_INT32(COM_QC_ACT, 0);
 
 /**
  * Set offboard loss failsafe mode when RC is available
@@ -448,6 +476,7 @@ PARAM_DEFINE_FLOAT(COM_OBC_LOSS_T, 5.0f);
  * @value 7 Offboard
  * @value 8 Stabilized
  * @value 12 Follow Me
+ * @value 13 Precision Land
  * @group Commander
  */
 PARAM_DEFINE_INT32(COM_FLTMODE1, -1);
@@ -471,6 +500,7 @@ PARAM_DEFINE_INT32(COM_FLTMODE1, -1);
  * @value 7 Offboard
  * @value 8 Stabilized
  * @value 12 Follow Me
+ * @value 13 Precision Land
  * @group Commander
  */
 PARAM_DEFINE_INT32(COM_FLTMODE2, -1);
@@ -494,6 +524,7 @@ PARAM_DEFINE_INT32(COM_FLTMODE2, -1);
  * @value 7 Offboard
  * @value 8 Stabilized
  * @value 12 Follow Me
+ * @value 13 Precision Land
  * @group Commander
  */
 PARAM_DEFINE_INT32(COM_FLTMODE3, -1);
@@ -517,6 +548,7 @@ PARAM_DEFINE_INT32(COM_FLTMODE3, -1);
  * @value 7 Offboard
  * @value 8 Stabilized
  * @value 12 Follow Me
+ * @value 13 Precision Land
  * @group Commander
  */
 PARAM_DEFINE_INT32(COM_FLTMODE4, -1);
@@ -540,6 +572,7 @@ PARAM_DEFINE_INT32(COM_FLTMODE4, -1);
  * @value 7 Offboard
  * @value 8 Stabilized
  * @value 12 Follow Me
+ * @value 13 Precision Land
  * @group Commander
  */
 PARAM_DEFINE_INT32(COM_FLTMODE5, -1);
@@ -563,6 +596,7 @@ PARAM_DEFINE_INT32(COM_FLTMODE5, -1);
  * @value 7 Offboard
  * @value 8 Stabilized
  * @value 12 Follow Me
+ * @value 13 Precision Land
  * @group Commander
  */
 PARAM_DEFINE_INT32(COM_FLTMODE6, -1);
@@ -660,16 +694,6 @@ PARAM_DEFINE_INT32(COM_ARM_MAG_ANG, 45);
  * @group Commander
  */
 PARAM_DEFINE_INT32(COM_ARM_MAG_STR, 2);
-
-/**
- * Rearming grace period
- *
- * Re-arming grace allows to rearm the drone with manual command without running prearmcheck during 5 s after disarming.
- *
- * @group Commander
- * @boolean
- */
-PARAM_DEFINE_INT32(COM_REARM_GRACE, 1);
 
 /**
  * Enable RC stick override of auto and/or offboard modes
@@ -788,33 +812,6 @@ PARAM_DEFINE_FLOAT(COM_ARM_AUTH_TO, 1);
  * @max 100
  */
 PARAM_DEFINE_INT32(COM_POS_FS_DELAY, 1);
-
-/**
- * Loss of position probation delay at takeoff.
- *
- * The probation delay is the number of seconds that the EKF innovation checks need to pass for the position to be declared good after it has been declared bad.
- * The probation delay will be reset to this parameter value when takeoff is detected.
- * After takeoff, if position checks are passing, the probation delay will reduce by one second for every lapsed second of valid position down to a minimum of 1 second.
- * If position checks are failing, the probation delay will increase by COM_POS_FS_GAIN seconds for every lapsed second up to a maximum of 100 seconds.
- * The default value has been optimised for rotary wing applications. For fixed wing applications, a value of 1 should be used.
- *
- * @unit s
- * @group Commander
- * @min 1
- * @max 100
- */
-PARAM_DEFINE_INT32(COM_POS_FS_PROB, 30);
-
-/**
- * Loss of position probation gain factor.
- *
- * This sets the rate that the loss of position probation time grows when position checks are failing.
- * The default value has been optimised for rotary wing applications. For fixed wing applications a value of 0 should be used.
- *
- * @reboot_required true
- * @group Commander
- */
-PARAM_DEFINE_INT32(COM_POS_FS_GAIN, 10);
 
 /**
  * Horizontal position error threshold.
@@ -980,6 +977,16 @@ PARAM_DEFINE_INT32(COM_ARM_CHK_ESCS, 0);
  * @group Commander
  */
 PARAM_DEFINE_INT32(COM_PREARM_MODE, 0);
+
+/**
+ * Enable force safety
+ *
+ * Force safety when the vehicle disarms. Not supported when safety button used over PX4IO board.
+ *
+ * @boolean
+ * @group Commander
+ */
+PARAM_DEFINE_INT32(COM_FORCE_SAFETY, 0);
 
 /**
  * Enable Motor Testing

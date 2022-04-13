@@ -98,8 +98,8 @@ void GyroCalibration::Run()
 		vehicle_status_flags_s vehicle_status_flags;
 
 		if (_vehicle_status_flags_sub.copy(&vehicle_status_flags)) {
-			if (_system_calibrating != vehicle_status_flags.condition_calibration_enabled) {
-				_system_calibrating = vehicle_status_flags.condition_calibration_enabled;
+			if (_system_calibrating != vehicle_status_flags.calibration_enabled) {
+				_system_calibrating = vehicle_status_flags.calibration_enabled;
 				Reset();
 				return;
 			}
@@ -232,7 +232,7 @@ void GyroCalibration::Run()
 		bool calibration_updated = false;
 
 		for (int gyro = 0; gyro < _sensor_gyro_subs.size(); gyro++) {
-			if (_gyro_calibration[gyro].device_id() != 0) {
+			if (_gyro_calibration[gyro].device_id() != 0 && _gyro_mean[gyro].valid()) {
 
 				// check variance again before saving
 				if (_gyro_mean[gyro].variance().longerThan(0.001f)) {
@@ -243,16 +243,13 @@ void GyroCalibration::Run()
 					return;
 				}
 
-				_gyro_calibration[gyro].set_calibration_index(gyro);
-
 				const Vector3f old_offset{_gyro_calibration[gyro].offset()};
 
 				if (_gyro_calibration[gyro].set_offset(_gyro_mean[gyro].mean())) {
-					_gyro_calibration[gyro].set_temperature(_temperature[gyro]);
 
 					calibration_updated = true;
 
-					PX4_INFO("gyro %d (%" PRIu32 ") updating calibration, [%.4f, %.4f, %.4f] -> [%.4f, %.4f, %.4f] %.1f°C",
+					PX4_INFO("gyro %d (%" PRIu32 ") updating offsets [%.3f, %.3f, %.3f]->[%.3f, %.3f, %.3f] %.1f degC",
 						 gyro, _gyro_calibration[gyro].device_id(),
 						 (double)old_offset(0), (double)old_offset(1), (double)old_offset(2),
 						 (double)_gyro_mean[gyro].mean()(0), (double)_gyro_mean[gyro].mean()(1), (double)_gyro_mean[gyro].mean()(2),
@@ -269,7 +266,7 @@ void GyroCalibration::Run()
 
 			for (int gyro = 0; gyro < _sensor_gyro_subs.size(); gyro++) {
 				if (_gyro_calibration[gyro].device_id() != 0) {
-					if (_gyro_calibration[gyro].ParametersSave()) {
+					if (_gyro_calibration[gyro].ParametersSave(gyro)) {
 						param_save = true;
 					}
 				}
@@ -312,7 +309,7 @@ int GyroCalibration::print_status()
 {
 	for (int gyro = 0; gyro < _sensor_gyro_subs.size(); gyro++) {
 		if (_gyro_calibration[gyro].device_id() != 0) {
-			PX4_INFO_RAW("gyro %d (%" PRIu32 "), [%.5f, %.5f, %.5f] var: [%.9f, %.9f, %.9f] %.1f°C (count %d)\n",
+			PX4_INFO_RAW("gyro %d (%" PRIu32 "), [%.5f, %.5f, %.5f] var: [%.9f, %.9f, %.9f] %.1f degC (count %d)\n",
 				     gyro, _gyro_calibration[gyro].device_id(),
 				     (double)_gyro_mean[gyro].mean()(0), (double)_gyro_mean[gyro].mean()(1), (double)_gyro_mean[gyro].mean()(2),
 				     (double)_gyro_mean[gyro].variance()(0), (double)_gyro_mean[gyro].variance()(1), (double)_gyro_mean[gyro].variance()(2),

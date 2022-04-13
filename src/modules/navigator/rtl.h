@@ -100,7 +100,7 @@ public:
 	void get_rtl_xy_z_speed(float &xy, float &z);
 	matrix::Vector2f get_wind();
 
-	bool getDestinationTypeMissionLanding() { return _destination.type == RTL_DESTINATION_MISSION_LANDING; }
+	bool getShouldEngageMissionForLanding() const { return _should_engange_mission_for_landing; }
 
 private:
 
@@ -162,6 +162,7 @@ private:
 
 	bool _climb_and_return_done{false};	// this flag is set to true if RTL is active and we are past the climb state and return state
 	bool _rtl_alt_min{false};
+	bool _should_engange_mission_for_landing{false};
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::RTL_RETURN_ALT>)  _param_rtl_return_alt,
@@ -177,8 +178,8 @@ private:
 		(ParamInt<px4::params::RTL_TIME_MARGIN>)   _param_rtl_time_margin
 	)
 
-	param_t		_param_mpc_z_vel_max_up{PARAM_INVALID};
-	param_t		_param_mpc_z_vel_max_down{PARAM_INVALID};
+	param_t		_param_mpc_z_v_auto_up{PARAM_INVALID};
+	param_t		_param_mpc_z_v_auto_dn{PARAM_INVALID};
 	param_t		_param_mpc_land_speed{PARAM_INVALID};
 	param_t		_param_fw_climb_rate{PARAM_INVALID};
 	param_t		_param_fw_sink_rate{PARAM_INVALID};
