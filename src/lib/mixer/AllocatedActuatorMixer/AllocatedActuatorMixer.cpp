@@ -54,7 +54,7 @@ AllocatedActuatorMixer::AllocatedActuatorMixer(ControlCallback control_cb,
 	Mixer(control_cb, cb_handle)
 {
 	if (index < 8) {
-		_control_group = 4;
+		_control_group = 0;
 		_control_index = index;
 
 	} else if (index < 16) {

@@ -1,5 +1,31 @@
 # PX4 Drone Autopilot
 
+## PWM覆盖
+
+仿真使用的命令为 `make px4_sitl_ctrlalloc gazebo_iris_ctrlalloc`
+实际硬件的编译命令为 `make cubepilot_cubeorange_ctrlalloc`
+
+使用控制分配数据流，保留了PID控制器的备份。修改如下：
+* 新增 overwrite 的 mixer 文件，描述了四个电机与 actuator control group 0 的映射关系
+  * motor 1 ~ `actuator_controls_0.control[0]`
+  * motor 2 ~ `actuator_controls_0.control[1]`
+  * motor 3 ~ `actuator_controls_0.control[2]`
+  * motor 4 ~ `actuator_controls_0.control[4]`
+  * `actuator_controls_0.control[i]` 的取值范围是 `[-1, 1]`，线性地对应着PWM值 `[min, max]` （具体值参考参数设置）
+* 将 `10017_iris_ctrlalloc` 机型文件中使用的 mixer 改为了 overwrite
+* 添加了 `4002_quad_x_ctrlalloc` 并添加进了相应的 cmakelist
+* 在 `AllocatedActuatorMixer.cpp` 中修改了订阅 control group 从4到0
+* 同时在 `ControlAllocator.cpp/hpp` 中将发布的 control group 改为0
+* 在 `ActuatorEffectivenessMultirotor.cpp` 中修复了分配矩阵无法更新的问题
+* 为 cubeorange 新建了 ctrlalloc 的编译目标
+
+还需要做的工作：
+* 在 `ControlAllocator.cpp` 的 `publish_legacy_actuator_controls()` 中订阅外来话题并放进 `actuator_controls_0` 中
+* 根据需要修改机型文件中的参数 `10017_iris_ctrlalloc` (sitl), `4002_quad_x_ctrlalloc` (实际硬件)
+
+
+## 接下来是原来的readme
+
 [![Releases](https://img.shields.io/github/release/PX4/PX4-Autopilot.svg)](https://github.com/PX4/PX4-Autopilot/releases) [![DOI](https://zenodo.org/badge/22634/PX4/PX4-Autopilot.svg)](https://zenodo.org/badge/latestdoi/22634/PX4/PX4-Autopilot)
 
 [![Nuttx Targets](https://github.com/PX4/PX4-Autopilot/workflows/Nuttx%20Targets/badge.svg)](https://github.com/PX4/PX4-Autopilot/actions?query=workflow%3A%22Nuttx+Targets%22?branch=master) [![SITL Tests](https://github.com/PX4/PX4-Autopilot/workflows/SITL%20Tests/badge.svg?branch=master)](https://github.com/PX4/PX4-Autopilot/actions?query=workflow%3A%22SITL+Tests%22)

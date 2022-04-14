@@ -50,7 +50,7 @@ bool
 ActuatorEffectivenessMultirotor::getEffectivenessMatrix(matrix::Matrix<float, NUM_AXES, NUM_ACTUATORS> &matrix)
 {
 	// Check if parameters have changed
-	if (_updated || _parameter_update_sub.updated()) {
+	if (_parameter_update_sub.updated()) {
 		// clear update
 		parameter_update_s param_update;
 		_parameter_update_sub.copy(&param_update);

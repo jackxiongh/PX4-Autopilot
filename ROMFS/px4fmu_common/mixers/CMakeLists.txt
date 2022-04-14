@@ -48,6 +48,7 @@ px4_add_romfs_files(
 	delta.main.mix
 	deltaquad.main.mix
 	direct.main.mix
+	overwrite.main.mix
 	dodeca_bottom_cox.aux.mix
 	dodeca_top_cox.main.mix
 	firefly6.aux.mix

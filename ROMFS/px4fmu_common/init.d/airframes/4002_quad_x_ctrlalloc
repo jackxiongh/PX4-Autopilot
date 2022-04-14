@@ -1,10 +1,9 @@
 #!/bin/sh
 #
-# @name 3DR Iris Quadrotor SITL
+# @name Generic Quadcopter CA
 #
-# @type Quadrotor Wide
-#
-# @maintainer Julian Oes <julian@oes.ch>
+# @type Quadrotor x
+# @class Copter
 #
 
 . ${R}etc/init.d/rc.mc_defaults
@@ -46,3 +45,4 @@ param set-default CA_MC_R3_CT 6.5
 param set-default CA_MC_R3_KM -0.05
 
 set MIXER overwrite
+set PWM_OUT 123456

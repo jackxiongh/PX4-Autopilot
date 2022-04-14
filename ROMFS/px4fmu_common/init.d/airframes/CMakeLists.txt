@@ -62,6 +62,7 @@ px4_add_romfs_files(
 
 	# [4000, 4999] Quadrotor x"
 	4001_quad_x
+	4002_quad_x_ctrlalloc
 	4003_qavr5
 	4009_qav250
 	4010_dji_f330
