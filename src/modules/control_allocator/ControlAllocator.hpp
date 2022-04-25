@@ -70,6 +70,7 @@
 #include <uORB/topics/vehicle_thrust_setpoint.h>
 #include <uORB/topics/vehicle_actuator_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/vehicle_wrench_setpoint.h>
 
 class ControlAllocator : public ModuleBase<ControlAllocator>, public ModuleParams, public px4::WorkItem
 {
@@ -139,6 +140,7 @@ private:
 	// Inputs
 	uORB::SubscriptionCallbackWorkItem _vehicle_torque_setpoint_sub{this, ORB_ID(vehicle_torque_setpoint)};  /**< vehicle torque setpoint subscription */
 	uORB::SubscriptionCallbackWorkItem _vehicle_thrust_setpoint_sub{this, ORB_ID(vehicle_thrust_setpoint)};	 /**< vehicle thrust setpoint subscription */
+	uORB::SubscriptionCallbackWorkItem _vehicle_wrench_setpoint_sub{this, ORB_ID(vehicle_wrench_setpoint)};  /**< wrench sp from adaptive mpc */
 
 	// Outputs
 	uORB::Publication<vehicle_actuator_setpoint_s>	_vehicle_actuator_setpoint_pub{ORB_ID(vehicle_actuator_setpoint)};	/**< actuator setpoint publication */
@@ -153,15 +155,16 @@ private:
 	uORB::Subscription _airspeed_sub{ORB_ID(airspeed)};				/**< airspeed subscription */
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
 
-	matrix::Vector3f _torque_sp;
-	matrix::Vector3f _thrust_sp;
+	matrix::Vector3f _torque_sp, _torque_sp_w;
+	matrix::Vector3f _thrust_sp, _thrust_sp_w;
+	bool _use_wrench_sp;
 
 	// float _battery_scale_factor{1.0f};
 	// float _airspeed_scale_factor{1.0f};
 
 	perf_counter_t	_loop_perf;			/**< loop duration performance counter */
 
-	hrt_abstime _last_run{0};
+	hrt_abstime _last_run{0}, _last_wrench_update{0};
 	hrt_abstime _timestamp_sample{0};
 
 	DEFINE_PARAMETERS(

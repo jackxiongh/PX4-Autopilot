@@ -36,9 +36,9 @@ param set-default VM_INERTIA_XZ 0.00014163105
 param set-default VM_INERTIA_YY 0.08169689992
 param set-default VM_INERTIA_YZ -0.00000936372
 param set-default VM_INERTIA_ZZ 0.14273598018
-param set-default VM_COM_X 0
+param set-default VM_COM_X -0.002
 param set-default VM_COM_Y 0
-param set-default VM_COM_Z 0.03
+param set-default VM_COM_Z 0.028
 
 # position controller
 param set-default MPC_XY_P 6            # 0.95

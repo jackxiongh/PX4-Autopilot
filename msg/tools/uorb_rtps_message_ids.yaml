@@ -314,8 +314,10 @@ rtps:
     id: 143
   - msg: vehicle_torque_setpoint
     id: 144
+    send: true
   - msg: vehicle_thrust_setpoint
     id: 145
+    send: true
   - msg: vehicle_actuator_setpoint
     id: 146
   - msg: control_allocator_status
@@ -348,6 +350,9 @@ rtps:
   - msg: arm_rotation
     id: 160
     send: true
+  - msg: vehicle_wrench_setpoint
+    id: 161
+    receive: true
   ########## multi topics: begin ##########
   # if send or receive true, make sure the corresponding single topic is also set
   - msg: actuator_controls_0
