@@ -59,7 +59,7 @@ px4_add_board(
 		battery_status
 		camera_feedback
 		commander
-		control_allocator
+		control_allocator	# new module
 		dataman
 		ekf2
 		esc_battery

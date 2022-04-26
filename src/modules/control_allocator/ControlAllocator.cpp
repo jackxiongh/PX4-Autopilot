@@ -78,6 +78,12 @@ ControlAllocator::init()
 		return false;
 	}
 
+    // add init
+    if (!_actuator_outputs_drl_sub.registerCallback()) {
+        PX4_ERR("actuator_outputs_drl callback registration failed!");
+        return false;
+    }
+
 	return true;
 }
 
@@ -237,6 +243,8 @@ ControlAllocator::Run()
 	if (should_exit()) {
 		_vehicle_torque_setpoint_sub.unregisterCallback();
 		_vehicle_thrust_setpoint_sub.unregisterCallback();
+
+        _actuator_outputs_drl_sub.unregisterCallback();
 		exit_and_cleanup();
 		return;
 	}
@@ -297,6 +305,8 @@ ControlAllocator::Run()
 	vehicle_torque_setpoint_s vehicle_torque_setpoint;
 	vehicle_thrust_setpoint_s vehicle_thrust_setpoint;
 
+    actuator_outputs_drl_s actuator_outputs_drl;
+
 	// Run allocator on torque changes
 	if (_vehicle_torque_setpoint_sub.update(&vehicle_torque_setpoint)) {
 		_torque_sp = matrix::Vector3f(vehicle_torque_setpoint.xyz);
@@ -316,6 +326,18 @@ ControlAllocator::Run()
 			_timestamp_sample = vehicle_thrust_setpoint.timestamp_sample;
 		}
 	}
+
+    // Run allocator on actuator_outputs_drl changes
+    if (_actuator_outputs_drl_sub.update(&actuator_outputs_drl)) {
+        /* get controls form drl controller */
+        _actuator_outputs_drl_sub.copy(&_actuator_outputs_drl_sp);
+
+        //_drl_sub.set_interval_us(_max_topic_update_interval_us);
+        do_update = true;
+        // Error: ‘struct actuator_outputs_drl_s’ has no member named ‘timestamp_sample’
+        //_timestamp_sample = actuator_outputs_drl.timestamp_sample;
+
+    }
 
 	if (do_update) {
 		_last_run = now;
@@ -448,6 +470,7 @@ ControlAllocator::publish_legacy_actuator_controls()
 	matrix::Vector<float, NUM_ACTUATORS> actuator_sp = _control_allocation->getActuatorSetpoint();
 	matrix::Vector<float, NUM_ACTUATORS> actuator_sp_normalized = _control_allocation->normalizeActuatorSetpoint(actuator_sp);
 
+    // write actuator_controls_0 with px4 control output
 	for (size_t i = 0; i < 8; i++) {
 		if (i < 3)
 			actuator_controls_0.control[i] = (PX4_ISFINITE(actuator_sp_normalized(i))) ? actuator_sp_normalized(i) : 0.0f;
@@ -457,6 +480,17 @@ ControlAllocator::publish_legacy_actuator_controls()
 			actuator_controls_0.control[i] = (PX4_ISFINITE(actuator_sp_normalized(i - 1))) ? actuator_sp_normalized(i - 1) : 0.0f;
 		actuator_controls_5.control[i] = (PX4_ISFINITE(actuator_sp_normalized(i + 8))) ? actuator_sp_normalized(i + 8) : 0.0f;
 	}
+
+    // overwrite actuator_controls_0 with drl control output
+    if(_actuator_outputs_drl_sp.usedrl)
+    {
+        actuator_controls_0.control[0] = _actuator_outputs_drl_sp.output[0];
+        actuator_controls_0.control[1] = _actuator_outputs_drl_sp.output[1];
+        actuator_controls_0.control[2] = _actuator_outputs_drl_sp.output[2];
+        // actuator_controls_0.control[3] is for thrust
+        actuator_controls_0.control[4] = _actuator_outputs_drl_sp.output[3];
+//        printf("usedrl\n");
+    }
 
 	_actuator_controls_0_pub.publish(actuator_controls_0);
 	_actuator_controls_5_pub.publish(actuator_controls_5);

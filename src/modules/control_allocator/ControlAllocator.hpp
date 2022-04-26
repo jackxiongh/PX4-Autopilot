@@ -69,6 +69,8 @@
 #include <uORB/topics/vehicle_actuator_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
 
+#include <uORB/topics/actuator_outputs_drl.h>
+
 class ControlAllocator : public ModuleBase<ControlAllocator>, public ModuleParams, public px4::WorkItem
 {
 public:
@@ -136,6 +138,8 @@ private:
 	uORB::SubscriptionCallbackWorkItem _vehicle_torque_setpoint_sub{this, ORB_ID(vehicle_torque_setpoint)};  /**< vehicle torque setpoint subscription */
 	uORB::SubscriptionCallbackWorkItem _vehicle_thrust_setpoint_sub{this, ORB_ID(vehicle_thrust_setpoint)};	 /**< vehicle thrust setpoint subscription */
 
+    uORB::SubscriptionCallbackWorkItem _actuator_outputs_drl_sub{this, ORB_ID(actuator_outputs_drl)};    // subcribe drl input （ref to 'vehicle torqur' above)
+
 	// Outputs
 	uORB::Publication<vehicle_actuator_setpoint_s>	_vehicle_actuator_setpoint_pub{ORB_ID(vehicle_actuator_setpoint)};	/**< actuator setpoint publication */
 	uORB::Publication<control_allocator_status_s>	_control_allocator_status_pub{ORB_ID(control_allocator_status)};	/**< actuator setpoint publication */
@@ -151,6 +155,8 @@ private:
 
 	matrix::Vector3f _torque_sp;
 	matrix::Vector3f _thrust_sp;
+
+    actuator_outputs_drl_s _actuator_outputs_drl_sp;     // save drl control value
 
 	// float _battery_scale_factor{1.0f};
 	// float _airspeed_scale_factor{1.0f};
