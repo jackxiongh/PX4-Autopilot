@@ -90,6 +90,10 @@ px4_add_board(
 		#uuv_pos_control
 		vmount
 		vtol_att_control
+
+		# px4_simple_app		# publish actuator_output_drl to test PWM overwrite
+		key_receiver		# an example about how to add a new module following the px4 tutorial
+
 	SYSTEMCMDS
 		bl_update
 		dmesg

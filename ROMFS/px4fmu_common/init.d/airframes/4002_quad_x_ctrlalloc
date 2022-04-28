@@ -45,4 +45,4 @@ param set-default CA_MC_R3_CT 6.5
 param set-default CA_MC_R3_KM -0.05
 
 set MIXER overwrite
-set PWM_OUT 123456
+set PWM_OUT 1234

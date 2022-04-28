@@ -38,7 +38,6 @@ set(msg_files
 	actuator_armed.msg
 	actuator_controls.msg
 	actuator_outputs.msg
-	actuator_outputs_drl.msg
 	adc_report.msg
 	airspeed.msg
 	airspeed_validated.msg
@@ -186,6 +185,10 @@ set(msg_files
 	wheel_encoders.msg
 	wind.msg
 	yaw_estimator_status.msg
+
+	# user defined msg
+	key_command.msg
+	actuator_outputs_drl.msg
 )
 
 if(NOT px4_constrained_flash_build)
