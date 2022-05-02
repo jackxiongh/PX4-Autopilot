@@ -50,11 +50,18 @@
 #include <uORB/uORB.h>
 #include <uORB/topics/vehicle_acceleration.h>
 #include <uORB/topics/vehicle_attitude.h>
+//#include <uORB/topics/actuator_outputs_drl.h>
+//#include <uORB/topics/actuator_controls_3.h>
+#include <uORB/topics/actuator_controls.h>
+
+//#define ORIGINAL
+#define OVERWRITE_PWM
 
 __EXPORT int px4_simple_app_main(int argc, char *argv[]);
 
 int px4_simple_app_main(int argc, char *argv[])
 {
+#ifdef ORIGINAL
 	PX4_INFO("Hello Sky!");
 
 	/* subscribe to vehicle_acceleration topic */
@@ -126,4 +133,47 @@ int px4_simple_app_main(int argc, char *argv[])
 	PX4_INFO("exiting");
 
 	return 0;
+#endif
+#ifdef OVERWRITE_PWM
+
+//	struct actuator_outputs_drl_s drl_control;
+//	orb_advert_t drl_pub = orb_advertise(ORB_ID(actuator_outputs_drl), &drl_control);
+//  drl_control.timestamp = hrt_absolute_time();
+
+    // pub to actuator_1
+//    struct actuator_controls_s _act_controls;
+    struct actuator_controls_s _act_controls;
+    orb_advert_t _actuator_controls_pub = orb_advertise(ORB_ID(actuator_controls_1), &_act_controls);
+    _act_controls.timestamp = hrt_absolute_time();
+
+    int usedrl = 0;
+    float pwm[4] = {0,0,0,0};
+
+    // 5 params: usedrl,pwm1~4
+    usedrl = atoi(argv[1]);
+    for(int i=0;i<4;i++)
+    {
+        pwm[i] = atof(argv[i+2]);
+    }
+
+    // PX4_INFO can not print %f, otherwise it will cause a compile error
+    PX4_INFO("[%d, %lf, %lf, %lf, %lf]", usedrl, (double)pwm[0], (double)pwm[1], (double)pwm[2], (double)pwm[3]);
+    if(usedrl == 1)
+	{
+//		drl_control.usedrl = true;
+		for(int i = 0; i < 4; i++)
+		{
+//			drl_control.output[i] = pwm[i];
+            _act_controls.control[i] =  pwm[i];
+		}
+		
+	}
+	else
+	{
+//		drl_control.usedrl = false;
+	}
+//	orb_publish(ORB_ID(actuator_outputs_drl), drl_pub, &drl_control);
+    orb_publish(ORB_ID(actuator_controls_1), _actuator_controls_pub, &_act_controls);
+	return 0;
+#endif
 }

@@ -22,6 +22,11 @@
 
 . ${R}etc/init.d/rc.mc_defaults
 
-set MIXER quad_x
+# set MIXER quad_x
+set MIXER overwrite
 
 set PWM_OUT 1234
+
+# set MIXER_AUX overwrite_aux
+
+# set PWM_OUT 1234
