@@ -22,6 +22,10 @@
 
 . ${R}etc/init.d/rc.mc_defaults
 
+param set-default PWM_MAIN_MAX 1950
+# to shundown in armed status
+param set-default PWM_MAIN_MIN 900
+
 # set MIXER quad_x
 set MIXER overwrite
 

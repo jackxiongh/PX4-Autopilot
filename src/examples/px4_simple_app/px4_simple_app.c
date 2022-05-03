@@ -142,7 +142,7 @@ int px4_simple_app_main(int argc, char *argv[])
 
     // pub to actuator_1
 //    struct actuator_controls_s _act_controls;
-    struct actuator_controls_s _act_controls;
+    struct actuator_controls_s _act_controls;   // TODO:init _act_controls (some elements are not zero) ?
     orb_advert_t _actuator_controls_pub = orb_advertise(ORB_ID(actuator_controls_1), &_act_controls);
     _act_controls.timestamp = hrt_absolute_time();
 
@@ -158,19 +158,24 @@ int px4_simple_app_main(int argc, char *argv[])
 
     // PX4_INFO can not print %f, otherwise it will cause a compile error
     PX4_INFO("[%d, %lf, %lf, %lf, %lf]", usedrl, (double)pwm[0], (double)pwm[1], (double)pwm[2], (double)pwm[3]);
+
     if(usedrl == 1)
 	{
-//		drl_control.usedrl = true;
 		for(int i = 0; i < 4; i++)
 		{
-//			drl_control.output[i] = pwm[i];
-            _act_controls.control[i] =  pwm[i];
+            // drl to actuator 1: linear mapping from [-1, 1] to [-0.67, 1]
+            // PWM: [900, 1950] to [1075, 1950]
+
+            _act_controls.control[i] = (pwm[i]-1)*5/6+1;
 		}
 		
 	}
-	else
+	else        // shutdown
 	{
-//		drl_control.usedrl = false;
+        for(int i = 0; i < 4; i++)
+        {
+            _act_controls.control[i] = -1;
+        }
 	}
 //	orb_publish(ORB_ID(actuator_outputs_drl), drl_pub, &drl_control);
     orb_publish(ORB_ID(actuator_controls_1), _actuator_controls_pub, &_act_controls);
