@@ -50,7 +50,9 @@
 #include <uORB/uORB.h>
 #include <uORB/topics/vehicle_acceleration.h>
 #include <uORB/topics/vehicle_attitude.h>
-#include <uORB/topics/actuator_outputs_drl.h>
+//#include <uORB/topics/actuator_outputs_drl.h>
+//#include <uORB/topics/actuator_controls_3.h>
+#include <uORB/topics/actuator_controls.h>
 
 //#define ORIGINAL
 #define OVERWRITE_PWM
@@ -133,30 +135,52 @@ int px4_simple_app_main(int argc, char *argv[])
 	return 0;
 #endif
 #ifdef OVERWRITE_PWM
-	struct actuator_outputs_drl_s drl_control;
-	orb_advert_t drl_pub = orb_advertise(ORB_ID(actuator_outputs_drl), &drl_control);
-	drl_control.timestamp = hrt_absolute_time();
 
-	int input[6] = {0, 0, 1800, 1800, 1800, 1800};
-	for (int i = 1; i <= (argc - 1); i++)
+//	struct actuator_outputs_drl_s drl_control;
+//	orb_advert_t drl_pub = orb_advertise(ORB_ID(actuator_outputs_drl), &drl_control);
+//  drl_control.timestamp = hrt_absolute_time();
+
+    // pub to actuator_1
+//    actuator_controls_s _act_controls{};
+    // TODO:why compile error? same as mixer_module.cpp (need some include?)
+    // C VS C++ API? : https://zhuanlan.zhihu.com/p/409410385
+    struct actuator_controls_s _act_controls;   // TODO:init _act_controls (some elements are not zero) ?
+    orb_advert_t _actuator_controls_pub = orb_advertise(ORB_ID(actuator_controls_1), &_act_controls);
+    _act_controls.timestamp = hrt_absolute_time();
+
+    int usedrl = 0;
+    float pwm[4] = {0,0,0,0};
+
+    // 5 params: usedrl,pwm1~4
+    usedrl = atoi(argv[1]);
+    for(int i=0;i<4;i++)
+    {
+        pwm[i] = atof(argv[i+2]);
+    }
+
+    // PX4_INFO can not print %f, otherwise it will cause a compile error
+    PX4_INFO("[%d, %lf, %lf, %lf, %lf]", usedrl, (double)pwm[0], (double)pwm[1], (double)pwm[2], (double)pwm[3]);
+
+    if(usedrl == 1)
 	{
-		input[i] = atoi(argv[i]);
-	}
-	PX4_INFO("[%d, %d, %d, %d, %d]", input[1], input[2], input[3], input[4], input[5]);
-	if(input[1] == 1)
-	{
-		drl_control.usedrl = true;
 		for(int i = 0; i < 4; i++)
 		{
-			drl_control.output[i] = input[i + 2];
+            // drl to actuator 1: linear mapping from [-1, 1] to [-0.67, 1]
+            // PWM: [900, 1950] to [1075, 1950]
+
+            _act_controls.control[i] = (pwm[i]-1)*5/6+1;
 		}
 		
 	}
-	else
+	else        // shutdown
 	{
-		drl_control.usedrl = false;
+        for(int i = 0; i < 4; i++)
+        {
+            _act_controls.control[i] = -1;
+        }
 	}
-	orb_publish(ORB_ID(actuator_outputs_drl), drl_pub, &drl_control);
+//	orb_publish(ORB_ID(actuator_outputs_drl), drl_pub, &drl_control);
+    orb_publish(ORB_ID(actuator_controls_1), _actuator_controls_pub, &_act_controls);
 	return 0;
 #endif
 }

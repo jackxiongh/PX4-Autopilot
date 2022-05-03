@@ -53,7 +53,8 @@ MixingOutput::MixingOutput(uint8_t max_num_outputs, OutputModuleInterface &inter
 	{&interface, ORB_ID(actuator_controls_4)},
 	{&interface, ORB_ID(actuator_controls_5)},
 },
-_drl_sub{&interface, ORB_ID(actuator_outputs_drl)},
+//_drl_sub{&interface, ORB_ID(actuator_outputs_drl)},
+_control_1_sub{&interface, ORB_ID(actuator_controls_1)},
 _scheduling_policy(scheduling_policy),
 _support_esc_calibration(support_esc_calibration),
 _max_num_outputs(max_num_outputs < MAX_ACTUATORS ? max_num_outputs : MAX_ACTUATORS),
@@ -149,11 +150,17 @@ bool MixingOutput::updateSubscriptions(bool allow_wq_switch, bool limit_callback
 		bool sub_group_0_callback_registered = false;
 		bool sub_group_1_callback_registered = false;
 
-		// register callback to drl controller output
-		if(_drl_sub.registerCallback())
-			PX4_DEBUG("subscribed to actuator_outputs_drl");
+//		// register callback to drl controller output
+//		if(_drl_sub.registerCallback())
+//			PX4_DEBUG("subscribed to actuator_outputs_drl");
+//		else
+//			PX4_ERR("actuator_outputs_drl register callback failed!");
+
+        // register callback to drl controller output
+		if(_control_1_sub.registerCallback())
+			PX4_DEBUG("subscribed to actuator_controls_1");
 		else
-			PX4_ERR("actuator_outputs_drl register callback failed!");
+			PX4_ERR("actuator_controls_1 register callback failed!");
 
 		// register callback to all required actuator control groups
 		for (unsigned i = 0; i < actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS; i++) {
@@ -212,7 +219,8 @@ void MixingOutput::setMaxTopicUpdateRate(unsigned max_topic_update_interval_us)
 		}
 	}
 
-	_drl_sub.set_interval_us(_max_topic_update_interval_us);
+//	_drl_sub.set_interval_us(_max_topic_update_interval_us);
+    _control_1_sub.set_interval_us(_max_topic_update_interval_us);
 
 }
 
@@ -250,7 +258,8 @@ void MixingOutput::unregister()
 		control_sub.unregisterCallback();
 	}
 
-	_drl_sub.unregisterCallback();
+//	_drl_sub.unregisterCallback();
+    _control_1_sub.unregisterCallback();
 }
 
 void MixingOutput::updateOutputSlewrateMultirotorMixer()
@@ -408,8 +417,9 @@ bool MixingOutput::update()
 		}
 	}
 
-	/* get controls form drl controller */
-	_drl_sub.copy(&_drl_controls);
+//	/* get controls form drl controller */
+//	_drl_sub.copy(&_drl_controls);
+    _control_1_sub.copy(&_controls_1);
 
 	/* do mixing */
 	float outputs[MAX_ACTUATORS] {};
@@ -437,13 +447,27 @@ bool MixingOutput::update()
 		stop_motors = true;
 	}
 
-	/* overwrite outputs in case of reading values from campanion computer */
-	if(_drl_controls.usedrl){
-		for (size_t i = 0; i < 4; i++) {
-			_current_output_value[i] = _drl_controls.output[i];
+//	/* overwrite outputs in case of reading values from campanion computer */
+//	if(_drl_controls.usedrl){
+//		for (size_t i = 0; i < 4; i++) {
+//			_current_output_value[i] = _drl_controls.output[i];
+//		}
+//		//printf("usedrl\n");
+//	}
+
+    // overwrite with actuator_controls_1
+    //    _current_output_value[i]： from 900- 1950
+    // TODO: get pwm limit paramters from files?
+    // TODO: use _controls_1 in _controls already exist (why always zero?)
+    int pwm_min = 900;
+//    int pwm_max = 1950;
+    int delta_pwm = 1050;
+        for (int i = 0; i < 4; i++) {
+//			_current_output_value[i] = (_controls[1].control[i] + 1) / 2 * delta_pwm + pwm_min;
+            _current_output_value[i] = (_controls_1.control[i] + 1) / 2 * delta_pwm + pwm_min;
+//            printf("%d\n");
+//            PX4_INFO("output %d : %d \n", i, _controls[1].control[i]);
 		}
-		//printf("usedrl\n");
-	}
 
 	/* apply _param_mot_ordering */
 	reorderOutputs(_current_output_value);

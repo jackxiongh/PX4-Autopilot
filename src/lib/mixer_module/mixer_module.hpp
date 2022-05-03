@@ -51,7 +51,7 @@
 #include <uORB/topics/multirotor_motor_limits.h>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/test_motor.h>
-#include <uORB/topics/actuator_outputs_drl.h>
+//#include <uORB/topics/actuator_outputs_drl.h>
 
 /**
  * @class OutputModuleInterface
@@ -236,18 +236,20 @@ private:
 	uint16_t _min_value[MAX_ACTUATORS] {};
 	uint16_t _max_value[MAX_ACTUATORS] {};
 	uint16_t _current_output_value[MAX_ACTUATORS] {}; ///< current output values (reordered)
-	actuator_outputs_drl_s _drl_controls;
+//	actuator_outputs_drl_s _drl_controls;
 	uint16_t _reverse_output_mask{0}; ///< reverses the interval [min, max] -> [max, min], NOT motor direction
 	output_limit_t _output_limit;
 
 	uORB::Subscription _armed_sub{ORB_ID(actuator_armed)};
 	uORB::SubscriptionCallbackWorkItem _control_subs[actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS];
-	uORB::SubscriptionCallbackWorkItem _drl_sub;
+//	uORB::SubscriptionCallbackWorkItem _drl_sub;
+    uORB::SubscriptionCallbackWorkItem _control_1_sub;
 
 	uORB::PublicationMulti<actuator_outputs_s> _outputs_pub{ORB_ID(actuator_outputs)};
 	uORB::PublicationMulti<multirotor_motor_limits_s> _to_mixer_status{ORB_ID(multirotor_motor_limits)}; 	///< mixer status flags
 
 	actuator_controls_s _controls[actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS] {};
+    actuator_controls_s _controls_1 {};
 	actuator_armed_s _armed{};
 
 	hrt_abstime _time_last_dt_update_multicopter{0};
