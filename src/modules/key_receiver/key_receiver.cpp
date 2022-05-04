@@ -36,7 +36,8 @@ int key_receiver_main(int argc, char **argv)
 
         if (poll_ret == 0)
         {
-            PX4_ERR("Got no data within a second");
+//            PX4_ERR("Got no data within a second");
+            PX4_INFO("Got no data within a second");
         }
 
         else if (poll_ret < 0)

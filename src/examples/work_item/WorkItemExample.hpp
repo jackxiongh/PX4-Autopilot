@@ -50,6 +50,9 @@
 #include <uORB/topics/sensor_accel.h>
 #include <uORB/topics/vehicle_status.h>
 
+#include <uORB/topics/actuator_outputs_drl.h>
+#include <uORB/topics/actuator_controls.h>
+
 using namespace time_literals;
 
 class WorkItemExample : public ModuleBase<WorkItemExample>, public ModuleParams, public px4::ScheduledWorkItem
@@ -94,4 +97,9 @@ private:
 
 
 	bool _armed{false};
+
+    // convert actuator_outputs_drl to actuator_controls_1
+    int last_received_drl_time = 0;
+    actuator_outputs_drl_s _drl_controls;
+    uORB::SubscriptionCallbackWorkItem _drl_sub{this,ORB_ID(actuator_outputs_drl)};
 };

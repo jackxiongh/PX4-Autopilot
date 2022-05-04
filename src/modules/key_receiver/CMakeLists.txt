@@ -8,5 +8,6 @@ px4_add_module(
         DEPENDS
         #   platforms__common
 #           px4_platform_common
+            px4_work_queue
 
 )
