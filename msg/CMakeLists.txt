@@ -185,6 +185,10 @@ set(msg_files
 	wheel_encoders.msg
 	wind.msg
 	yaw_estimator_status.msg
+
+	# user defined msg
+	key_command.msg
+	actuator_outputs_drl.msg
 )
 
 if(NOT px4_constrained_flash_build)

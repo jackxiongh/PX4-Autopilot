@@ -53,8 +53,10 @@ bool WorkItemExample::init()
 		return false;
 	}
 
-	// alternatively, Run on fixed interval
-	// ScheduleOnInterval(5000_us); // 2000 us interval, 200 Hz rate
+	// alternatively, Run on fixed interval (defalt: 250Hz in sitl / 800Hz in real quad)
+	// ScheduleOnInterval(5000_us); // 5000 us interval, 200 Hz rate
+//    ScheduleOnInterval(4_ms); // 20ms interval, 50 Hz rate
+    // It seems this does not work? in work_queue status this module run in >250Hz
 
 	return true;
 }
@@ -79,50 +81,94 @@ void WorkItemExample::Run()
 	}
 
 
-	// Example
-	//  update vehicle_status to check arming state
-	if (_vehicle_status_sub.updated()) {
-		vehicle_status_s vehicle_status;
-
-		if (_vehicle_status_sub.copy(&vehicle_status)) {
-
-			const bool armed = (vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED);
-
-			if (armed && !_armed) {
-				PX4_WARN("vehicle armed due to %d", vehicle_status.latest_arming_reason);
-
-			} else if (!armed && _armed) {
-				PX4_INFO("vehicle disarmed due to %d", vehicle_status.latest_disarming_reason);
-			}
-
-			_armed = armed;
-		}
-	}
-
-
-	// Example
-	//  grab latest accelerometer data
-	if (_sensor_accel_sub.updated()) {
-		sensor_accel_s accel;
-
-		if (_sensor_accel_sub.copy(&accel)) {
-			// DO WORK
-
-			// access parameter value (SYS_AUTOSTART)
-			if (_param_sys_autostart.get() == 1234) {
-				// do something if SYS_AUTOSTART is 1234
-			}
-		}
-	}
+//	// Example
+//	//  update vehicle_status to check arming state
+//	if (_vehicle_status_sub.updated()) {
+//		vehicle_status_s vehicle_status;
+//
+//		if (_vehicle_status_sub.copy(&vehicle_status)) {
+//
+//			const bool armed = (vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED);
+//
+//			if (armed && !_armed) {
+//				PX4_WARN("vehicle armed due to %d", vehicle_status.latest_arming_reason);
+//
+//			} else if (!armed && _armed) {
+//				PX4_INFO("vehicle disarmed due to %d", vehicle_status.latest_disarming_reason);
+//			}
+//
+//			_armed = armed;
+//		}
+//	}
 
 
-	// Example
-	//  publish some data
-	orb_test_s data{};
-	data.val = 314159;
-	data.timestamp = hrt_absolute_time();
-	_orb_test_pub.publish(data);
+//	// Example
+//	//  grab latest accelerometer data
+//	if (_sensor_accel_sub.updated()) {
+//		sensor_accel_s accel;
+//
+//		if (_sensor_accel_sub.copy(&accel)) {
+//			// DO WORK
+//
+//			// access parameter value (SYS_AUTOSTART)
+//			if (_param_sys_autostart.get() == 1234) {
+//				// do something if SYS_AUTOSTART is 1234
+//			}
+//		}
+//	}
 
+
+//	// Example
+//	//  publish some data
+//	orb_test_s data{};
+//	data.val = 314159;
+//	data.timestamp = hrt_absolute_time();       // abs time (us)
+//	_orb_test_pub.publish(data);
+// //    PX4_INFO("%ld", data.timestamp);        //  calculate freq
+
+    // convert actuator_outputs_drl to actuator_controls_1
+
+    // copy drl input and update last received time
+    if (_drl_sub.updated())
+    {
+        _drl_sub.copy(&_drl_controls);
+        last_received_drl_time = _drl_controls.timestamp; // the hrt_absolute_time() when mavlink receive it
+    }
+
+    // pub drl if connected to companion computer (drl delay < 0.5s), otherwise shutdown
+    // TODO: construct as private members?
+    struct actuator_controls_s _act_controls;
+    orb_advert_t _actuator_controls_pub = orb_advertise(ORB_ID(actuator_controls_1), &_act_controls);
+    _act_controls.timestamp = hrt_absolute_time();
+    if (hrt_absolute_time() - last_received_drl_time > 200000) // shutdown, (0.2s = 200000us)
+    {
+        for(int i = 0; i < 4; i++)
+        {
+            _act_controls.control[i] = -1;
+        }
+    }
+    else
+    {
+        if(_drl_controls.usedrl == 1)
+        {
+            for(int i = 0; i < 4; i++)
+            {
+                // drl to actuator 1: linear mapping from [-1, 1] to [-0.67, 1]
+                // PWM: [900, 1950] to [1075, 1950]
+
+                _act_controls.control[i] = (_drl_controls.output[i]-1)*5/6+1;
+            }
+
+        }
+        else        // shutdown
+        {
+            for(int i = 0; i < 4; i++)
+            {
+                _act_controls.control[i] = -1;
+            }
+        }
+    }
+    orb_publish(ORB_ID(actuator_controls_1), _actuator_controls_pub, &_act_controls);
 
 	perf_end(_loop_perf);
 }

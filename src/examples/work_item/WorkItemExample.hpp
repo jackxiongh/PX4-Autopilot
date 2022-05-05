@@ -45,10 +45,13 @@
 #include <uORB/Publication.hpp>
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionCallback.hpp>
-#include <uORB/topics/orb_test.h>
+//#include <uORB/topics/orb_test.h>     // make cubeorange: uORB/topics/orb_test.h: No such file or directory
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/sensor_accel.h>
 #include <uORB/topics/vehicle_status.h>
+
+#include <uORB/topics/actuator_outputs_drl.h>
+#include <uORB/topics/actuator_controls.h>
 
 using namespace time_literals;
 
@@ -75,7 +78,7 @@ private:
 	void Run() override;
 
 	// Publications
-	uORB::Publication<orb_test_s> _orb_test_pub{ORB_ID(orb_test)};
+//	uORB::Publication<orb_test_s> _orb_test_pub{ORB_ID(orb_test)};
 
 	// Subscriptions
 	uORB::SubscriptionCallbackWorkItem _sensor_accel_sub{this, ORB_ID(sensor_accel)};        // subscription that schedules WorkItemExample when updated
@@ -94,4 +97,9 @@ private:
 
 
 	bool _armed{false};
+
+    // convert actuator_outputs_drl to actuator_controls_1
+    int last_received_drl_time = 0;
+    actuator_outputs_drl_s _drl_controls;
+    uORB::SubscriptionCallbackWorkItem _drl_sub{this,ORB_ID(actuator_outputs_drl)};
 };
