@@ -78,8 +78,14 @@ param set-default MPC_MAN_R_MAX 40
 param set-default MPC_MAN_P_MAX 40
 param set-default MPC_MAN_Y_MAX 40
 
-# preflight
-param set-default COM_DISARM_PRFLT 10
+# takeoff
+param set-default MIS_TAKEOFF_ALT 1.4
+
+# disarm
+param set-default COM_DISARM_PRFLT 0
+param set-default COM_DISARM_LAND 0
+param set-default FD_FAIL_P 0
+param set-default FD_FAIL_R 0
 
 # control allocator settings
 param set-default CA_AIRFRAME 3
