@@ -41,12 +41,12 @@ param set-default VM_COM_Y 0
 param set-default VM_COM_Z 0.028
 
 # position controller
-param set-default MPC_XY_P 6            # 0.95
-param set-default MPC_XY_VEL_P_ACC 1.8    # 1.8
+param set-default MPC_XY_P 4            # 0.95
+param set-default MPC_XY_VEL_P_ACC 2    # 1.8
 param set-default MPC_XY_VEL_I_ACC 0.4    # 0.4
 param set-default MPC_XY_VEL_D_ACC 0.2    # 0.2
 #param set-default MPC_XY_VEL_MAX 100
-param set-default MPC_Z_P 6            # 1
+param set-default MPC_Z_P 2            # 1
 param set-default MPC_Z_VEL_P_ACC 4     # 4
 param set-default MPC_Z_VEL_I_ACC 2     # 2
 param set-default MPC_Z_VEL_D_ACC 0     # 0
@@ -55,23 +55,32 @@ param set-default MPC_Z_VEL_D_ACC 0     # 0
 
 
 # attitude controller
-param set-default MC_ROLL_P 12         # 6.5
-param set-default MC_PITCH_P 12        # 6.5
-param set-default MC_YAW_P 3          # 2.8
+param set-default MC_ROLL_P 6         # 6.5
+param set-default MC_PITCH_P 6       # 6.5
+param set-default MC_YAW_P 1          # 2.8
+param set-default MC_YAW_WEIGHT 0.4
 param set-default MC_ROLLRATE_MAX 60
 param set-default MC_PITCHRATE_MAX 60
 param set-default MC_YAWRATE_MAX 60
 
 # angular velocity controller settings
+# do not use this set of FF on the real MAV
 param set-default AVC_X_P 18             # 18
-param set-default AVC_X_I 0.3           # 0.2
-param set-default AVC_X_D 0.01          # 0.36
+param set-default AVC_X_I 1           # 0.2
+param set-default AVC_X_I_LIM 10
+param set-default AVC_X_D 0          # 0.36
+param set-default AVC_X_FF 1
+
 param set-default AVC_Y_P 18             # 18
-param set-default AVC_Y_I 0.3           # 0.2
-param set-default AVC_Y_D 0.01          # 0.36
-param set-default AVC_Z_P 8             # 7
-param set-default AVC_Z_I 0.3           # 0.1
-param set-default AVC_Z_D 0.01          # 0
+param set-default AVC_Y_I 1           # 0.2
+param set-default AVC_X_I_LIM 10
+param set-default AVC_Y_D 0          # 0.36
+param set-default AVC_Y_FF 1
+
+param set-default AVC_Z_P 7             # 7
+param set-default AVC_Z_I 0.1           # 0.1
+param set-default AVC_Z_D 0          # 0
+param set-default AVC_Z_FF 1
 
 # acro mode
 param set-default MPC_MAN_R_MAX 40
@@ -86,6 +95,7 @@ param set-default COM_DISARM_PRFLT 0
 param set-default COM_DISARM_LAND 0
 param set-default FD_FAIL_P 0
 param set-default FD_FAIL_R 0
+param set-default COM_KILL_DISARM 0
 
 # control allocator settings
 param set-default CA_AIRFRAME 3
