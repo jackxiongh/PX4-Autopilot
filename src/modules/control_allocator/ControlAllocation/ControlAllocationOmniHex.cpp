@@ -173,7 +173,8 @@ void ControlAllocationOmniHex::allocate()
 	_servo_sp.setZero();
 	for (int i = 0; i < 6; i++)
 	{
-		_rotor_sp(i) = sqrtf(powf(_allocation_raw(i * 2), 2) + powf(_allocation_raw(i * 2 + 1), 2));
+		// _rotor_sp(i) = powf(powf(_allocation_raw(i * 2), 2) + powf(_allocation_raw(i * 2 + 1), 2), 0.25f);
+		_rotor_sp(i) = powf(powf(_allocation_raw(i * 2), 2) + powf(_allocation_raw(i * 2 + 1), 2), 0.25f);
 		_servo_sp(i) = atan2f(_allocation_raw(i * 2 + 1), _allocation_raw(i * 2));
 	}
 
